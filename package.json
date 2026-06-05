@@ -1,0 +1,25 @@
+{
+  "name": "daily-quiz-question",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview --host 127.0.0.1"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.1.8",
+    "@vitejs/plugin-vue": "^6.0.1",
+    "lucide-vue-next": "latest",
+    "tailwindcss": "^4.1.8",
+    "vite": "^7.0.0",
+    "vue": "^3.5.16"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "@vue/tsconfig": "^0.9.1",
+    "typescript": "^5.8.3",
+    "vue-tsc": "^2.2.10"
+  }
+}
