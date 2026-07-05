@@ -98,7 +98,7 @@ const ZeptomailOTP = Email({
         Authorization: apiToken,
       },
       body: JSON.stringify({
-        from: { address: "no_reply@quizgen.app", name: "Quizgen" },
+        from: { address: "no-reply@quizgen.app", name: "Quizgen" },
         to: [{ email_address: { address: email } }],
         template_key: templateId,
         merge_info: {

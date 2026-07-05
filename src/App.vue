@@ -2,6 +2,7 @@
 import {
   CalendarDays,
   Check,
+  ChevronRight,
   Lock,
   Play,
   Share2,
@@ -1343,126 +1344,100 @@ watch(initials, () => {
           </template>
         </div>
 
-        <Transition
-          enter-active-class="transition-opacity duration-200 ease-out"
-          enter-from-class="opacity-0"
-          enter-to-class="opacity-100"
-          leave-active-class="transition-opacity duration-150 ease-in"
-          leave-from-class="opacity-100"
-          leave-to-class="opacity-0"
-        >
-          <div
-            v-if="showArchive"
-            class="fixed inset-0 z-50 bg-black/85 p-3 text-white sm:p-6"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Daily archive"
-            @click.self="showArchive = false"
-          >
-            <Transition
-              appear
-              enter-active-class="transition duration-200 ease-out"
-              enter-from-class="translate-y-4 scale-[0.98] opacity-0 sm:translate-y-2"
-              enter-to-class="translate-y-0 scale-100 opacity-100"
-              leave-active-class="transition duration-150 ease-in"
-              leave-from-class="translate-y-0 scale-100 opacity-100"
-              leave-to-class="translate-y-3 scale-[0.99] opacity-0"
-            >
-              <section
-                v-if="showArchive"
-                class="mx-auto flex h-full w-full max-w-[650px] transform-gpu flex-col overflow-hidden rounded-[22px] border border-white/10 bg-zinc-950 shadow-[0_26px_80px_rgba(0,0,0,0.5)] will-change-transform max-sm:rounded-none"
-              >
-                <header
-                  class="flex shrink-0 items-center justify-between gap-4 border-b border-white/10 px-5 py-4 sm:px-6"
-                >
-                  <div>
-                    <p
-                      class="text-xs font-black uppercase tracking-[0.18em] text-zinc-500"
-                    >
-                      Archive
-                    </p>
-                    <p class="mt-1 text-2xl font-black text-white">
-                      Daily questions
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    class="size-11 rounded-full border-white/20 bg-white/5 hover:border-white/40 hover:bg-white/10"
-                    aria-label="Close archive"
-                    title="Close"
-                    @click="showArchive = false"
-                  >
-                    <X class="size-5" />
-                  </Button>
-                </header>
-
-                <div class="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
-                  <div
-                    v-if="isArchiveLoading || !archiveLoaded"
-                    class="grid gap-3 sm:grid-cols-2"
-                  >
-                    <div
-                      v-for="n in 6"
-                      :key="n"
-                      class="min-h-36 animate-pulse rounded-2xl border border-white/10 bg-white/5"
-                    ></div>
-                  </div>
-                  <div v-else class="grid gap-3 sm:grid-cols-2">
-                    <button
-                      v-for="item in archiveQuestions"
-                      :key="item.question.date"
-                      class="min-h-36 rounded-2xl border border-zinc-700 bg-zinc-950/80 p-4 text-left transition hover:border-[#d6a64f]/60 hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-70"
-                      :class="{
-                        'border-[#d6a64f]/80 bg-zinc-900 shadow-[0_0_0_1px_rgb(214_166_79_/_0.16)]':
-                          selectedQuestion?.date === item.question.date,
-                      }"
-                      :disabled="item.locked"
-                      @click="selectArchiveQuestion(item)"
-                    >
-                      <div class="flex items-start justify-between gap-3">
-                        <div>
-                          <p
-                            class="text-[0.68rem] font-black uppercase tracking-[0.18em] text-zinc-500"
-                          >
-                            {{
-                              item.locked
-                                ? "Tomorrow"
-                                : `Daily #${item.question.number}`
-                            }}
-                          </p>
-                          <p class="mt-2 text-xl font-black text-white">
-                            {{
-                              item.locked
-                                ? "Locked"
-                                : formatDate(item.question.date)
-                            }}
-                          </p>
-                        </div>
-                        <Lock
-                          v-if="item.locked"
-                          class="size-4 text-zinc-500"
-                        />
-                      </div>
-
-                      <p class="mt-4 text-sm leading-snug text-zinc-400">
-                        {{ item.question.category }}
-                      </p>
-
-                      <p
-                        v-if="!item.locked"
-                        class="mt-5 inline-flex items-center gap-2 rounded-full border border-[#d6a64f]/40 px-3 py-1 text-[0.72rem] font-black uppercase tracking-[0.16em] text-[#d6a64f]"
-                      >
-                        Open
-                      </p>
-                    </button>
-                  </div>
-                </div>
-              </section>
-            </Transition>
-          </div>
-        </Transition>
       </div>
     </section>
+
+    <Teleport to="body">
+      <Transition
+        enter-active-class="transition-opacity duration-200 ease-out"
+        enter-from-class="opacity-0"
+        enter-to-class="opacity-100"
+        leave-active-class="transition-opacity duration-150 ease-in"
+        leave-from-class="opacity-100"
+        leave-to-class="opacity-0"
+      >
+        <div
+          v-if="showArchive"
+          class="fixed inset-0 z-50 overflow-y-auto bg-[#09090b] text-white"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Daily archive"
+        >
+          <div
+            class="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,rgb(214_166_79_/_0.10),transparent_36%),radial-gradient(ellipse_at_18%_82%,rgb(110_134_190_/_0.10),transparent_30%)]"
+            aria-hidden="true"
+          ></div>
+          <Button
+            variant="outline"
+            size="icon"
+            class="fixed right-4 top-4 z-20 size-11 rounded-full border-zinc-700 bg-zinc-950/90 hover:border-[#d6a64f]/70 hover:bg-zinc-900 sm:right-6 sm:top-6"
+            aria-label="Close archive"
+            title="Close"
+            @click="showArchive = false"
+          >
+            <X class="size-5" />
+          </Button>
+
+          <Transition
+            appear
+            enter-active-class="transition duration-200 ease-out"
+            enter-from-class="translate-y-4 opacity-0"
+            enter-to-class="translate-y-0 opacity-100"
+            leave-active-class="transition duration-150 ease-in"
+            leave-from-class="translate-y-0 opacity-100"
+            leave-to-class="translate-y-3 opacity-0"
+          >
+            <section
+              v-if="showArchive"
+              class="relative mx-auto min-h-full w-full max-w-[680px] transform-gpu px-4 pb-8 pt-20 will-change-transform sm:px-6 sm:pt-24"
+            >
+              <div v-if="isArchiveLoading || !archiveLoaded" class="grid gap-3">
+                <div
+                  v-for="n in 6"
+                  :key="n"
+                  class="h-24 animate-pulse rounded-2xl bg-zinc-900"
+                ></div>
+              </div>
+              <div v-else class="grid gap-3">
+                <button
+                  v-for="item in archiveQuestions"
+                  :key="item.question.date"
+                  class="grid min-h-24 grid-cols-[1fr_auto] items-center gap-4 rounded-2xl bg-[#1b1b1f] px-5 py-4 text-left transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  :class="{
+                    'bg-zinc-800 ring-1 ring-[#d6a64f]/60':
+                      selectedQuestion?.date === item.question.date,
+                  }"
+                  :disabled="item.locked"
+                  @click="selectArchiveQuestion(item)"
+                >
+                  <div class="min-w-0">
+                    <p class="geist-pixel text-sm leading-none text-[#d6a64f]">
+                      {{
+                        item.locked
+                          ? "Tomorrow"
+                          : `Daily #${item.question.number}`
+                      }}
+                    </p>
+                    <p
+                      class="mt-2 truncate text-2xl font-black leading-none text-white"
+                    >
+                      {{
+                        item.locked ? "Locked" : formatDate(item.question.date)
+                      }}
+                    </p>
+                    <p class="mt-2 truncate text-base font-semibold text-zinc-400">
+                      {{ item.question.category }}
+                    </p>
+                  </div>
+
+                  <Lock v-if="item.locked" class="size-5 text-zinc-500" />
+                  <ChevronRight v-else class="size-5 text-[#d6a64f]" />
+                </button>
+              </div>
+            </section>
+          </Transition>
+        </div>
+      </Transition>
+    </Teleport>
   </main>
 </template>
