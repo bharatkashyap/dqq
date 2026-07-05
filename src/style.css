@@ -348,6 +348,7 @@ input {
   margin: 0.2rem 0 0;
   font-size: 0.85rem;
   font-weight: 500;
+  font-style: italic;
   color: #a1a1aa;
   line-height: 1.4;
   text-align: center;
@@ -380,7 +381,7 @@ input {
 
 .answer-copy h2 {
   margin: 0.35rem 0 0;
-  font-size: clamp(1.55rem, 3.6vw, 2.1rem);
+  font-size: clamp(1.85rem, 4vw, 2.4rem);
   font-weight: 500;
   line-height: 1.05;
   color: #d6a64f;
