@@ -1189,7 +1189,7 @@ watch(answerSlides, () => {
                 <article
                   v-for="(slide, index) in answerSlides"
                   :key="index"
-                  class="answer-slide"
+                  class="answer-slide max-h-[55vh] overflow-y-auto"
                   :aria-label="`Answer slide ${index + 1} of ${answerSlides.length}`"
                 >
                   <div class="answer-copy">

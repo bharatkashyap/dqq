@@ -329,7 +329,8 @@ input {
   margin-inline: -1.15rem;
 }
 
-.answer-slides::-webkit-scrollbar {
+.answer-slides::-webkit-scrollbar,
+.answer-slide::-webkit-scrollbar {
   display: none;
 }
 
@@ -339,6 +340,8 @@ input {
   scroll-snap-align: start;
   display: grid;
   gap: 0.9rem;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   /* re-add horizontal padding that was removed from .answer-slides */
   padding-inline: 1.15rem;
 }
