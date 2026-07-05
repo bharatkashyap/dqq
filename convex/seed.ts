@@ -155,6 +155,12 @@ export const run = mutation(async (ctx) => {
           title: q.answerSnippet.title,
           body: textToTipTapDoc(q.answerSnippet.body, q.answerSnippet.media),
         },
+        answerSlides: [
+          {
+            title: q.answerSnippet.title,
+            body: textToTipTapDoc(q.answerSnippet.body, q.answerSnippet.media),
+          },
+        ],
       });
     }
   }

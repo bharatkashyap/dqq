@@ -2,6 +2,7 @@
 import {
   CalendarDays,
   Check,
+  ChevronLeft,
   ChevronRight,
   Lock,
   Play,
@@ -14,7 +15,7 @@ import { useRoute, useRouter } from "vue-router";
 
 import Button from "@/components/ui/Button.vue";
 import TipTapRenderer from "@/components/TipTapRenderer.vue";
-import type { Question, StoredResult, GameState } from "@/types";
+import type { AnswerSlide, Question, StoredResult, GameState } from "@/types";
 import { countWordsInNode } from "@/lib/tiptap";
 import { useConvexClient, useConvexMutation } from "convex-vue";
 import { api } from "../convex/_generated/api";
@@ -66,6 +67,8 @@ const animatedScore = ref(0);
 
 const fullAnswerData = ref<any>(null);
 const resultStats = ref<{ playersToday: number; rank: number } | null>(null);
+const answerCarousel = ref<HTMLElement | null>(null);
+const currentAnswerSlideIndex = ref(0);
 
 const recordCompletion = useConvexMutation(api.questions.recordCompletion);
 
@@ -210,6 +213,28 @@ const rankLine = computed(
     )}`,
 );
 
+const answerSlides = computed<AnswerSlide[]>(() => {
+  const slides = fullAnswerData.value?.answerSlides;
+
+  if (Array.isArray(slides) && slides.length > 0) {
+    return slides.map((slide: Partial<AnswerSlide>, index: number) => ({
+      title: slide.title?.trim() || (index === 0 ? "Answer" : "More"),
+      ...(slide.subtitle?.trim() ? { subtitle: slide.subtitle.trim() } : {}),
+      body: slide.body ?? { type: "doc", content: [{ type: "paragraph" }] },
+    }));
+  }
+
+  const snippet = fullAnswerData.value?.answerSnippet;
+  if (!snippet) return [];
+
+  return [
+    {
+      title: snippet.title,
+      body: snippet.body,
+    },
+  ];
+});
+
 const score = computed(() => {
   if (gameState.value !== "result" || isLocked.value) {
     return 0;
@@ -312,6 +337,7 @@ function setCurrentQuestion(question: Question | LockedQuestion | null) {
   animatedScore.value = 0;
   fullAnswerData.value = null;
   resultStats.value = null;
+  currentAnswerSlideIndex.value = 0;
 
   if (!question) {
     gameState.value = "intro";
@@ -730,6 +756,7 @@ async function fetchAnswerData(date: string) {
     quizSlug: selectedQuizSlug.value,
     date,
   });
+  currentAnswerSlideIndex.value = 0;
 }
 
 async function fetchResultStats() {
@@ -949,6 +976,30 @@ function chooseQuestion(index: number) {
   });
 }
 
+function syncAnswerSlideIndex(event: Event) {
+  const target = event.currentTarget as HTMLElement | null;
+  if (!target || !target.clientWidth) return;
+
+  currentAnswerSlideIndex.value = Math.max(
+    0,
+    Math.min(
+      answerSlides.value.length - 1,
+      Math.round(target.scrollLeft / target.clientWidth),
+    ),
+  );
+}
+
+function showAnswerSlide(index: number) {
+  if (!answerCarousel.value) return;
+
+  const nextIndex = Math.max(0, Math.min(answerSlides.value.length - 1, index));
+  currentAnswerSlideIndex.value = nextIndex;
+  answerCarousel.value.scrollTo({
+    left: answerCarousel.value.clientWidth * nextIndex,
+    behavior: "smooth",
+  });
+}
+
 function goHome() {
   if (isHome.value) {
     return;
@@ -1045,6 +1096,10 @@ watch(score, (value) => {
 
 watch(initials, () => {
   saveInitials();
+});
+
+watch(answerSlides, () => {
+  currentAnswerSlideIndex.value = 0;
 });
 </script>
 
@@ -1303,19 +1358,82 @@ watch(initials, () => {
               </p>
             </div>
 
-            <section class="answer-card" v-if="fullAnswerData?.answerSnippet">
-              <div class="answer-copy">
-                <h2 class="text-center">
-                  {{ fullAnswerData.answerSnippet.title }}
-                </h2>
+            <section class="answer-card" v-if="answerSlides.length">
+              <div
+                v-if="answerSlides.length > 1"
+                class="answer-carousel-bar"
+              >
+                <span class="answer-slide-count">
+                  {{ currentAnswerSlideIndex + 1 }} / {{ answerSlides.length }}
+                </span>
+                <div class="answer-slide-controls">
+                  <button
+                    type="button"
+                    class="answer-slide-control"
+                    :disabled="currentAnswerSlideIndex === 0"
+                    aria-label="Previous answer slide"
+                    title="Previous"
+                    @click="showAnswerSlide(currentAnswerSlideIndex - 1)"
+                  >
+                    <ChevronLeft class="size-4" />
+                  </button>
+                  <button
+                    type="button"
+                    class="answer-slide-control"
+                    :disabled="
+                      currentAnswerSlideIndex === answerSlides.length - 1
+                    "
+                    aria-label="Next answer slide"
+                    title="Next"
+                    @click="showAnswerSlide(currentAnswerSlideIndex + 1)"
+                  >
+                    <ChevronRight class="size-4" />
+                  </button>
+                </div>
               </div>
 
-              <div class="answer-media">
-                <TipTapRenderer
-                  class="answer-snippet-body"
-                  :content="fullAnswerData.answerSnippet.body"
-                  :visibleWordsCount="9999"
-                />
+              <div
+                ref="answerCarousel"
+                class="answer-slides"
+                aria-label="Answer slides"
+                @scroll.passive="syncAnswerSlideIndex"
+              >
+                <article
+                  v-for="(slide, index) in answerSlides"
+                  :key="index"
+                  class="answer-slide"
+                  :aria-label="`Answer slide ${index + 1} of ${answerSlides.length}`"
+                >
+                  <div class="answer-copy">
+                    <h2>{{ slide.title }}</h2>
+                    <p v-if="slide.subtitle" class="answer-subtitle">
+                      {{ slide.subtitle }}
+                    </p>
+                  </div>
+
+                  <div class="answer-media">
+                    <TipTapRenderer
+                      class="answer-snippet-body"
+                      :content="slide.body"
+                      :visibleWordsCount="9999"
+                    />
+                  </div>
+                </article>
+              </div>
+
+              <div v-if="answerSlides.length > 1" class="answer-slide-dots">
+                <button
+                  v-for="(_, index) in answerSlides"
+                  :key="index"
+                  type="button"
+                  class="answer-slide-dot"
+                  :class="{ active: index === currentAnswerSlideIndex }"
+                  :aria-label="`Show answer slide ${index + 1}`"
+                  :aria-current="
+                    index === currentAnswerSlideIndex ? 'true' : undefined
+                  "
+                  @click="showAnswerSlide(index)"
+                ></button>
               </div>
             </section>
 

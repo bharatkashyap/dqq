@@ -243,22 +243,91 @@
                   />
                 </div>
                 <div>
-                  <label
-                    class="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500"
-                    >Snippet Title</label
-                  >
-                  <input
-                    v-model="form.answerSnippet.title"
-                    type="text"
-                    class="w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm outline-none transition focus:border-amber-300 focus:ring-2 focus:ring-amber-300/25"
-                  />
-                </div>
-                <div>
-                  <label
-                    class="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500"
-                    >Snippet Body</label
-                  >
-                  <RichEditor v-model="form.answerSnippet.body" />
+                  <div class="mb-3 flex items-center justify-between gap-3">
+                    <label
+                      class="block text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500"
+                      >Answer Slides</label
+                    >
+                    <button
+                      class="text-sm font-semibold text-amber-200 transition hover:text-amber-100"
+                      @click="addAnswerSlide"
+                    >
+                      + Add Slide
+                    </button>
+                  </div>
+
+                  <div class="space-y-4">
+                    <div
+                      v-for="(slide, index) in form.answerSlides"
+                      :key="index"
+                      class="rounded-2xl border border-white/10 bg-white/5 p-4"
+                    >
+                      <div class="mb-3 flex items-center justify-between gap-3">
+                        <span
+                          class="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500"
+                        >
+                          Slide {{ Number(index) + 1 }}
+                        </span>
+                        <div class="flex items-center gap-3 text-sm">
+                          <button
+                            class="text-zinc-500 transition hover:text-amber-200 disabled:cursor-not-allowed disabled:opacity-40"
+                            :disabled="Number(index) === 0"
+                            @click="moveAnswerSlide(Number(index), -1)"
+                          >
+                            Up
+                          </button>
+                          <button
+                            class="text-zinc-500 transition hover:text-amber-200 disabled:cursor-not-allowed disabled:opacity-40"
+                            :disabled="
+                              Number(index) === form.answerSlides.length - 1
+                            "
+                            @click="moveAnswerSlide(Number(index), 1)"
+                          >
+                            Down
+                          </button>
+                          <button
+                            class="text-zinc-500 transition hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-40"
+                            :disabled="form.answerSlides.length <= 1"
+                            @click="removeAnswerSlide(Number(index))"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+
+                      <div class="grid gap-3">
+                        <div>
+                          <label
+                            class="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500"
+                            >Title</label
+                          >
+                          <input
+                            v-model="slide.title"
+                            type="text"
+                            class="w-full rounded-2xl border border-white/10 bg-zinc-950/70 px-3 py-2.5 text-sm outline-none transition focus:border-amber-300 focus:ring-2 focus:ring-amber-300/25"
+                          />
+                        </div>
+                        <div>
+                          <label
+                            class="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500"
+                            >Subtitle</label
+                          >
+                          <input
+                            v-model="slide.subtitle"
+                            type="text"
+                            class="w-full rounded-2xl border border-white/10 bg-zinc-950/70 px-3 py-2.5 text-sm outline-none transition focus:border-amber-300 focus:ring-2 focus:ring-amber-300/25"
+                          />
+                        </div>
+                        <div>
+                          <label
+                            class="mb-2 block text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500"
+                            >Body</label
+                          >
+                          <RichEditor v-model="slide.body" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -285,7 +354,7 @@ import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import RichEditor from "./components/RichEditor.vue";
 import { useAdminAuth } from "@/lib/admin-auth";
-import type { Question } from "../types";
+import type { AnswerSlide, Question } from "../types";
 
 const router = useRouter();
 const auth = useAdminAuth();
@@ -340,19 +409,72 @@ const suggestedNewQuestionFields = () => {
   };
 };
 
+const emptyRichTextDoc = () => ({
+  type: "doc",
+  content: [{ type: "paragraph" }],
+});
+
+const emptyAnswerSlide = (
+  overrides: Partial<AnswerSlide> = {},
+): AnswerSlide => ({
+  title: "",
+  body: emptyRichTextDoc(),
+  ...overrides,
+});
+
+const answerSnippetFromSlides = (slides: AnswerSlide[]) => {
+  const firstSlide = slides[0] ?? emptyAnswerSlide({ title: "Answer" });
+
+  return {
+    title: firstSlide.title,
+    body: firstSlide.body,
+  };
+};
+
+const normalizeAnswerSlides = (
+  slides: Partial<AnswerSlide>[] | undefined,
+  fallbackSnippet?: Question["answerSnippet"],
+) => {
+  const source =
+    Array.isArray(slides) && slides.length > 0
+      ? slides
+      : [
+          {
+            title: fallbackSnippet?.title ?? "",
+            body: fallbackSnippet?.body ?? emptyRichTextDoc(),
+          },
+        ];
+
+  return source.map((slide, index) => {
+    const title = slide.title?.trim() || (index === 0 ? "Answer" : "More");
+    const subtitle = slide.subtitle?.trim();
+    const normalized: AnswerSlide = {
+      title,
+      body: slide.body ?? emptyRichTextDoc(),
+    };
+
+    if (subtitle) {
+      normalized.subtitle = subtitle;
+    }
+
+    return normalized;
+  });
+};
+
 const emptyForm = (overrides: Partial<Question> = {}): Partial<Question> => ({
   date: "",
   number: 0,
   title: "Daily",
   category: "",
   question: "",
-  paragraphs: [{ type: "doc", content: [{ type: "paragraph" }] }],
+  paragraphs: [emptyRichTextDoc()],
   answer: "",
   answerKeywords: [],
   answerSnippet: {
     title: "",
-    body: { type: "doc", content: [{ type: "paragraph" }] },
+    body: emptyRichTextDoc(),
   },
+  answerSlides: [emptyAnswerSlide()],
   ...overrides,
 });
 
@@ -379,6 +501,10 @@ watch(fullAnswer, (answerObj) => {
     form.value.answer = answerObj.answer;
     form.value.answerKeywords = answerObj.answerKeywords;
     form.value.answerSnippet = answerObj.answerSnippet;
+    form.value.answerSlides = normalizeAnswerSlides(
+      answerObj.answerSlides,
+      answerObj.answerSnippet,
+    );
   }
 });
 
@@ -400,8 +526,9 @@ function selectQuestion(q: Question) {
     answerKeywords: [],
     answerSnippet: {
       title: "",
-      body: { type: "doc", content: [{ type: "paragraph" }] },
+      body: emptyRichTextDoc(),
     },
+    answerSlides: normalizeAnswerSlides(q.answerSlides, q.answerSnippet),
   };
 }
 
@@ -411,12 +538,38 @@ function startNewQuestion() {
 }
 
 function addParagraph() {
-  form.value.paragraphs.push({ type: "doc", content: [{ type: "paragraph" }] });
+  form.value.paragraphs.push(emptyRichTextDoc());
+}
+
+function addAnswerSlide() {
+  form.value.answerSlides.push(emptyAnswerSlide());
+}
+
+function removeAnswerSlide(index: number) {
+  if (form.value.answerSlides.length <= 1) return;
+  form.value.answerSlides.splice(index, 1);
+}
+
+function moveAnswerSlide(index: number, direction: -1 | 1) {
+  const targetIndex = index + direction;
+
+  if (targetIndex < 0 || targetIndex >= form.value.answerSlides.length) {
+    return;
+  }
+
+  const [slide] = form.value.answerSlides.splice(index, 1);
+  form.value.answerSlides.splice(targetIndex, 0, slide);
 }
 
 async function saveQuestion() {
   saving.value = true;
   try {
+    const answerSlides = normalizeAnswerSlides(
+      form.value.answerSlides,
+      form.value.answerSnippet,
+    );
+    const answerSnippet = answerSnippetFromSlides(answerSlides);
+
     if (isEditing.value) {
       const id = selectedQuestionId.value;
       if (!id) return;
@@ -429,7 +582,8 @@ async function saveQuestion() {
         category: form.value.category,
         question: form.value.question,
         paragraphs: form.value.paragraphs,
-        answerSnippet: form.value.answerSnippet,
+        answerSnippet,
+        answerSlides,
       });
     } else {
       await createQuestionMutation.mutate({
@@ -442,7 +596,8 @@ async function saveQuestion() {
         category: form.value.category,
         question: form.value.question,
         paragraphs: form.value.paragraphs,
-        answerSnippet: form.value.answerSnippet,
+        answerSnippet,
+        answerSlides,
       });
       startNewQuestion();
     }

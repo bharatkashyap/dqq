@@ -12,6 +12,7 @@ import type * as admin from "../admin.js";
 import type * as auth from "../auth.js";
 import type * as files from "../files.js";
 import type * as http from "../http.js";
+import type * as lib_answerSlides from "../lib/answerSlides.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as questions from "../questions.js";
 import type * as seed from "../seed.js";
@@ -29,6 +30,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   files: typeof files;
   http: typeof http;
+  "lib/answerSlides": typeof lib_answerSlides;
   "lib/auth": typeof lib_auth;
   questions: typeof questions;
   seed: typeof seed;

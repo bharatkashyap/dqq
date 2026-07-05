@@ -1,5 +1,11 @@
 import type { Id } from "../convex/_generated/dataModel";
 
+export type AnswerSlide = {
+  title: string;
+  subtitle?: string;
+  body: any;
+};
+
 export type Question = {
   _id: Id<"questions">;
   quizSlug: string;
@@ -16,6 +22,7 @@ export type Question = {
     title: string;
     body: any;
   };
+  answerSlides?: AnswerSlide[];
 };
 
 export type StoredResult = {
