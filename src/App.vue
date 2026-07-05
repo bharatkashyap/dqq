@@ -1164,13 +1164,13 @@ watch(guess, () => {
             class="grid min-h-[420px] place-items-center text-center"
           >
             <div>
-              <Lock class="mx-auto mb-4 size-10 text-[#d6a64f]" />
-              <p class="title-face text-6xl">locked</p>
+              <Lock class="mx-auto mb-4 size-sm text-[#d6a64f]" />
+              <p class="geist-pixel text-6xl">locked</p>
               <p
-                class="mx-auto mt-4 max-w-md text-lg font-semibold leading-snug text-zinc-400"
+                class="mx-auto mt-4 max-w-md text-md google-sans font-semibold leading-snug text-zinc-400"
               >
-                Question #{{ selectedQuestion.number }} opens on
-                {{ formattedDate }}.
+                Opens on
+                {{ formattedDate }}
               </p>
             </div>
           </div>
