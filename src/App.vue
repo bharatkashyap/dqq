@@ -121,7 +121,7 @@ const archiveQuestions = computed<ArchiveQuestionItem[]>(() => {
       locked: false,
     }));
 
-  const tomorrow = new Date(`${todayKey}T00:00:00+05:30`);
+  const tomorrow = new Date(`${todayKey}T00:00:00+07:00`);
   tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowDate = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Bangkok",
@@ -487,13 +487,19 @@ function formatDate(date: string) {
     month: "long",
     day: "numeric",
     year: "numeric",
-  }).format(new Date(`${date}T00:00:00+05:30`));
+  }).format(new Date(`${date}T00:00:00+07:00`));
 }
 
 function updateResetCountdown() {
   const now = new Date();
-  const reset = new Date(now);
-  reset.setHours(24, 0, 0, 0);
+  const tomorrowDate = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Bangkok",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+  const reset = new Date(`${tomorrowDate}T00:00:00+07:00`);
+  reset.setDate(reset.getDate() + 1);
   secondsUntilReset.value = Math.max(
     0,
     Math.floor((reset.getTime() - now.getTime()) / 1000),
@@ -726,6 +732,7 @@ async function submitGuess() {
     answerQuality.value = quality;
     gameState.value = "result";
     resultTone.value = "right";
+    showSkipChip.value = false;
     clearTimers();
     writeStoredResult();
     saveInitials();
@@ -1322,7 +1329,7 @@ watch(guess, () => {
       >
         <button
           v-if="showSkipChip"
-          class="pointer-events-auto cursor-pointer fixed bottom-24 left-1/2 z-50 -translate-x-1/2 flex items-center gap-1.5 rounded-full border border-zinc-700 bg-zinc-950/90 px-3 py-1.5 text-xs font-medium text-zinc-300 shadow-xl backdrop-blur-md hover:border-zinc-500 hover:text-white sm:bottom-10"
+          class="pointer-events-auto small-text-button cursor-pointer fixed bottom-28 left-1/2 z-50 -translate-x-1/2 flex items-center gap-1.5 rounded-full border border-zinc-700 bg-zinc-950/90 px-3 py-1.5 text-zinc-300 shadow-xl backdrop-blur-md hover:border-zinc-500 hover:text-white"
           aria-label="Skip animation"
           title="Skip reveal animation"
           @click="handleSkip"

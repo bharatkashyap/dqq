@@ -8,9 +8,9 @@ import {
   answerSnippetValidator,
 } from "./lib/answerSlides";
 
-function getTodayDateInIndia() {
+function getTodayDateInBangkok() {
   return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Kolkata",
+    timeZone: "Asia/Bangkok",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -35,7 +35,7 @@ function stripAnswerFields<
 export const getArchive = query({
   args: { quizSlug: v.string() },
   handler: async (ctx, args) => {
-    const todayDate = getTodayDateInIndia();
+    const todayDate = getTodayDateInBangkok();
     const questions = await ctx.db
       .query("questions")
       .withIndex("by_quiz_date", (q) =>
@@ -51,7 +51,7 @@ export const getArchive = query({
 export const getLatestQuestion = query({
   args: { quizSlug: v.string() },
   handler: async (ctx, args) => {
-    const todayDate = getTodayDateInIndia();
+    const todayDate = getTodayDateInBangkok();
     const question = await ctx.db
       .query("questions")
       .withIndex("by_quiz_date", (q) =>
@@ -67,7 +67,7 @@ export const getLatestQuestion = query({
 export const getQuestion = query({
   args: { quizSlug: v.string(), date: v.string() },
   handler: async (ctx, args) => {
-    const todayDate = getTodayDateInIndia();
+    const todayDate = getTodayDateInBangkok();
     if (args.date > todayDate) {
       return null;
     }
@@ -86,7 +86,7 @@ export const getQuestion = query({
 export const getAnswer = query({
   args: { quizSlug: v.string(), date: v.string() },
   handler: async (ctx, args) => {
-    const todayDate = getTodayDateInIndia();
+    const todayDate = getTodayDateInBangkok();
     if (args.date > todayDate) {
       return null;
     }

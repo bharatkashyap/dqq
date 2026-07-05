@@ -324,7 +324,9 @@ input {
   border-radius: 0.5rem;
   background: rgb(255 255 255 / 0.05);
   color: #a1a1aa;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 
 .answer-slide-control:hover:not(:disabled) {
@@ -390,7 +392,9 @@ input {
   height: 0.45rem;
   border-radius: 9999px;
   background: rgb(255 255 255 / 0.2);
-  transition: background 0.2s, transform 0.2s;
+  transition:
+    background 0.2s,
+    transform 0.2s;
 }
 
 .answer-slide-dot.active {
@@ -545,4 +549,8 @@ input {
   45% {
     box-shadow: 0 0 26px 0 rgb(214 166 79 / 0.24);
   }
+}
+
+.small-text-button {
+  font-size: 0.8rem;
 }
