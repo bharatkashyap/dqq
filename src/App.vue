@@ -527,8 +527,6 @@ function formatScore(value: number) {
   });
 }
 
-
-
 function animateScore(target: number) {
   if (scoreFrame) {
     window.cancelAnimationFrame(scoreFrame);
@@ -1140,7 +1138,7 @@ watch(answerSlides, () => {
           <template v-else>
             <div>
               <div
-                class="flex flex-wrap items-center gap-x-4 gap-y-1 text-base font-black"
+                class="flex flex-wrap items-center gap-x-4 gap-y-1 geist-pixel text-base font-black"
               >
                 <span>{{ formattedDate }}</span>
                 <span class="text-emerald-400">{{ rankLine }}!</span>
@@ -1156,10 +1154,7 @@ watch(answerSlides, () => {
             </div>
 
             <section class="answer-card" v-if="answerSlides.length">
-              <div
-                v-if="answerSlides.length > 1"
-                class="answer-carousel-bar"
-              >
+              <div v-if="answerSlides.length > 1" class="answer-carousel-bar">
                 <span class="answer-slide-count">
                   {{ currentAnswerSlideIndex + 1 }} / {{ answerSlides.length }}
                 </span>
@@ -1268,9 +1263,17 @@ watch(answerSlides, () => {
                 <button
                   type="button"
                   class="flex size-[3.75rem] items-center justify-center rounded-full border border-white/20 bg-zinc-950/70 text-sm font-bold uppercase tracking-widest text-zinc-300 shadow-[0_14px_32px_rgb(0_0_0_/_0.34),inset_0_1px_0_rgb(255_255_255_/_0.08)] backdrop-blur-md transition hover:border-[#d6a64f]/60 hover:text-[#d6a64f] sm:size-[3.45rem]"
-                  :aria-label="editingInitials ? 'Done editing initials' : 'Edit initials'"
-                  :title="editingInitials ? 'Done' : `Initials: ${playerInitials}`"
-                  @click="editingInitials ? commitInitials() : (editingInitials = true)"
+                  :aria-label="
+                    editingInitials ? 'Done editing initials' : 'Edit initials'
+                  "
+                  :title="
+                    editingInitials ? 'Done' : `Initials: ${playerInitials}`
+                  "
+                  @click="
+                    editingInitials
+                      ? commitInitials()
+                      : (editingInitials = true)
+                  "
                 >
                   {{ playerInitials }}
                 </button>
