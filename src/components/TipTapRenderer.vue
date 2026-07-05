@@ -3,13 +3,13 @@
     <template v-for="(node, nodeIdx) in content.content" :key="nodeIdx">
       <p
         v-if="node.type === 'paragraph'"
-        :style="{ textAlign: node.attrs?.textAlign || 'justify' }"
+        :style="{ textAlign: node.attrs?.textAlign || 'left' }"
         class="reveal-text google-sans"
       >
         <template v-for="(child, childIdx) in node.content" :key="childIdx">
           <template v-if="child.type === 'text'">
             <span
-              v-for="(word, wordIdx) in child.text.split(/(\\s+)/)"
+              v-for="(word, wordIdx) in splitText(child.text)"
               :key="wordIdx"
               :class="{
                 'word-slot': word.trim().length > 0,
@@ -57,7 +57,7 @@ const wordIndices = computed(() => {
       if (node.type === "paragraph" && node.content) {
         node.content.forEach((child: any, childIdx: number) => {
           if (child.type === "text") {
-            const parts = child.text.split(/(\s+)/);
+            const parts = splitText(child.text);
             parts.forEach((word: string, wordIdx: number) => {
               if (word.trim().length > 0) {
                 map.set(`${nodeIdx}-${childIdx}-${wordIdx}`, globalIdx);
@@ -81,7 +81,7 @@ const maxWordIndexByNode = computed(() => {
       if (node.type === "paragraph" && node.content) {
         node.content.forEach((child: any, childIdx: number) => {
           if (child.type === "text") {
-            const parts = child.text.split(/(\s+)/);
+            const parts = splitText(child.text);
             parts.forEach((word: string, wordIdx: number) => {
               if (word.trim().length > 0) {
                 const globalIdx =
@@ -127,6 +127,10 @@ function isMediaVisible(nodeIdx: number) {
     lastWordIdxBeforeMedia === -1 ||
     props.visibleWordsCount > lastWordIdxBeforeMedia
   );
+}
+
+function splitText(text = "") {
+  return text.split(/(\s+)/);
 }
 
 function getMarksClasses(marks: any[]) {
