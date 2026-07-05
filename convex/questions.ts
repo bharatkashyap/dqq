@@ -1,6 +1,12 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { requireAdmin } from "./lib/auth";
+import {
+  answerSlidesFromRecord,
+  answerSlidesValidator,
+  answerSnippetFromSlides,
+  answerSnippetValidator,
+} from "./lib/answerSlides";
 
 function getTodayDateInIndia() {
   return new Intl.DateTimeFormat("en-CA", {
@@ -11,10 +17,18 @@ function getTodayDateInIndia() {
   }).format(new Date());
 }
 
-function stripAnswerFields<T extends { answer: string; answerKeywords: string[]; answerSnippet: unknown }>(
+function stripAnswerFields<
+  T extends {
+    answer: string;
+    answerKeywords: string[];
+    answerSnippet: unknown;
+    answerSlides?: unknown;
+  },
+>(
   question: T,
 ) {
-  const { answer, answerKeywords, answerSnippet, ...rest } = question;
+  const { answer, answerKeywords, answerSnippet, answerSlides, ...rest } =
+    question;
   return rest;
 }
 
@@ -90,6 +104,7 @@ export const getAnswer = query({
       answer: question.answer,
       answerKeywords: question.answerKeywords,
       answerSnippet: question.answerSnippet,
+      answerSlides: answerSlidesFromRecord(question),
     };
   },
 });
@@ -168,10 +183,8 @@ export const createQuestion = mutation({
     category: v.string(),
     question: v.string(),
     paragraphs: v.array(v.any()),
-    answerSnippet: v.object({
-      title: v.string(),
-      body: v.any(),
-    }),
+    answerSnippet: v.optional(answerSnippetValidator),
+    answerSlides: v.optional(answerSlidesValidator),
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
@@ -187,8 +200,16 @@ export const createQuestion = mutation({
       throw new Error(`Question for date ${args.date} already exists`);
     }
 
+    const { answerSnippet, answerSlides, ...questionFields } = args;
+    const normalizedSlides = answerSlidesFromRecord({
+      answerSnippet: answerSnippet ?? answerSnippetFromSlides([]),
+      answerSlides,
+    });
+
     return await ctx.db.insert("questions", {
-      ...args,
+      ...questionFields,
+      answerSnippet: answerSnippetFromSlides(normalizedSlides, answerSnippet),
+      answerSlides: normalizedSlides,
       playersToday: 0,
     });
   },
@@ -203,15 +224,28 @@ export const updateQuestion = mutation({
     category: v.string(),
     question: v.string(),
     paragraphs: v.array(v.any()),
-    answerSnippet: v.object({
-      title: v.string(),
-      body: v.any(),
-    }),
+    answerSnippet: v.optional(answerSnippetValidator),
+    answerSlides: v.optional(answerSlidesValidator),
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
 
-    const { id, ...updates } = args;
-    await ctx.db.patch(id, updates);
+    const { id, answerSnippet, answerSlides, ...updates } = args;
+    const currentQuestion = await ctx.db.get(id);
+
+    if (!currentQuestion) {
+      throw new Error("Question not found");
+    }
+
+    const normalizedSlides = answerSlidesFromRecord({
+      answerSnippet: answerSnippet ?? currentQuestion.answerSnippet,
+      answerSlides,
+    });
+
+    await ctx.db.patch(id, {
+      ...updates,
+      answerSnippet: answerSnippetFromSlides(normalizedSlides, answerSnippet),
+      answerSlides: normalizedSlides,
+    });
   },
 });

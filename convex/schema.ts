@@ -1,6 +1,10 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { authTables } from "@convex-dev/auth/server";
+import {
+  answerSlideValidator,
+  answerSnippetValidator,
+} from "./lib/answerSlides";
 
 export default defineSchema({
   ...authTables,
@@ -24,10 +28,8 @@ export default defineSchema({
     playersToday: v.number(),
     question: v.string(),
     paragraphs: v.array(v.any()),
-    answerSnippet: v.object({
-      title: v.string(),
-      body: v.any(),
-    }),
+    answerSnippet: answerSnippetValidator,
+    answerSlides: v.optional(v.array(answerSlideValidator)),
   })
     .index("by_quiz_date", ["quizSlug", "date"])
     .index("by_quiz_number", ["quizSlug", "number"]),

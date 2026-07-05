@@ -8,6 +8,7 @@ import {
   optionalAuth,
   requireAdmin,
 } from "./lib/auth";
+import { answerSlidesFromRecord } from "./lib/answerSlides";
 
 async function getUserEmail(ctx: QueryCtx, userId: Id<"users">) {
   const user = await ctx.db.get(userId);
@@ -88,6 +89,7 @@ export const getAnswer = query({
       answer: question.answer,
       answerKeywords: question.answerKeywords,
       answerSnippet: question.answerSnippet,
+      answerSlides: answerSlidesFromRecord(question),
     };
   },
 });
