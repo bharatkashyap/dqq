@@ -109,11 +109,11 @@ const archiveQuestions = computed<ArchiveQuestionItem[]>(() => {
   const questions: ArchiveQuestionItem[] = [...playableQuestions.value]
     .reverse()
     .map((question) => ({
-    question,
-    index: dailyQuestions.value.findIndex(
-      (entry) => entry.date === question.date,
-    ),
-    locked: false,
+      question,
+      index: dailyQuestions.value.findIndex(
+        (entry) => entry.date === question.date,
+      ),
+      locked: false,
     }));
 
   const tomorrow = new Date(`${todayKey}T00:00:00+05:30`);
@@ -156,6 +156,12 @@ const visibleCardCount = computed(() => {
   return Math.min(
     currentCardIndex.value + 1,
     selectedQuestion.value.paragraphs.length,
+  );
+});
+const canRevealNextCard = computed(() => {
+  const question = selectedQuestion.value;
+  return Boolean(
+    question && currentCardIndex.value < question.paragraphs.length - 1,
   );
 });
 
@@ -876,6 +882,22 @@ function revealNextCard() {
   startReveal();
 }
 
+function canRevealCard(cardIndex: number) {
+  return (
+    cardComplete.value &&
+    canRevealNextCard.value &&
+    cardIndex === currentCardIndex.value + 1
+  );
+}
+
+function revealCard(cardIndex: number) {
+  if (!canRevealCard(cardIndex)) {
+    return;
+  }
+
+  revealNextCard();
+}
+
 function scrollArchive(direction: -1 | 1) {
   const viewport = archiveViewport.value;
   if (!viewport) return;
@@ -893,7 +915,11 @@ function selectArchiveQuestion(item: (typeof archiveQuestions.value)[number]) {
 
 async function submitGuess() {
   const question = selectedQuestion.value;
-  if (!guess.value.trim() || gameState.value !== "playing" || !isPersistedQuestion(question)) {
+  if (
+    !guess.value.trim() ||
+    gameState.value !== "playing" ||
+    !isPersistedQuestion(question)
+  ) {
     return;
   }
 
@@ -910,7 +936,9 @@ async function submitGuess() {
     triggerHaptics([18, 36, 18, 60, 42]);
 
     // Check if this was the first time completion and increment playersToday
-    const alreadyCompletedStr = localStorage.getItem(`quizgen-completed:${question.date}`);
+    const alreadyCompletedStr = localStorage.getItem(
+      `quizgen-completed:${question.date}`,
+    );
     if (!alreadyCompletedStr) {
       localStorage.setItem(`quizgen-completed:${question.date}`, "true");
       try {
@@ -1218,7 +1246,16 @@ watch(initials, () => {
                 active: cardIndex === currentCardIndex,
                 seen: cardIndex < currentCardIndex,
                 locked: cardIndex > currentCardIndex,
+                'next-reveal': canRevealCard(cardIndex),
               }"
+              :role="canRevealCard(cardIndex) ? 'button' : undefined"
+              :tabindex="canRevealCard(cardIndex) ? 0 : undefined"
+              :aria-label="
+                canRevealCard(cardIndex) ? 'Reveal next card' : undefined
+              "
+              @click="revealCard(cardIndex)"
+              @keydown.enter.prevent="revealCard(cardIndex)"
+              @keydown.space.prevent="revealCard(cardIndex)"
             >
               <TipTapRenderer
                 :content="paragraph"
@@ -1255,11 +1292,9 @@ watch(initials, () => {
 
             <div class="h-11">
               <Button
-                v-show="
-                  currentCardIndex < selectedQuestion.paragraphs.length - 1
-                "
+                v-show="canRevealNextCard"
                 variant="outline"
-                class="h-11 w-full rounded-full border-zinc-600"
+                class="hidden h-11 w-full rounded-full border-zinc-600 sm:inline-flex"
                 :disabled="!cardComplete"
                 @click="revealNextCard"
               >
