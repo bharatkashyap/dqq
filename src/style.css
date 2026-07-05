@@ -167,6 +167,7 @@ input {
 }
 
 .reveal-card {
+  position: relative;
   padding: clamp(0.75rem, 2vw, 1rem);
   border: 1px solid rgb(63 63 70 / 0.86);
   border-radius: 1rem;
@@ -174,7 +175,8 @@ input {
   transition:
     border-color 220ms ease,
     background 220ms ease,
-    opacity 220ms ease;
+    opacity 220ms ease,
+    transform 220ms ease;
 }
 
 .reveal-card.active {
@@ -193,9 +195,17 @@ input {
 
 .reveal-card.next-reveal {
   cursor: pointer;
+  padding-right: clamp(3.1rem, 9vw, 3.65rem);
   border-color: rgb(214 166 79 / 0.46);
   background: rgb(24 24 27 / 0.74);
   opacity: 0.72;
+}
+
+.reveal-card.next-reveal:hover {
+  border-color: rgb(214 166 79 / 0.78);
+  background: rgb(28 25 20 / 0.9);
+  opacity: 0.92;
+  transform: translateY(-1px);
 }
 
 .reveal-card.next-reveal:focus-visible {
@@ -203,8 +213,35 @@ input {
   outline-offset: 3px;
 }
 
+.reveal-cue {
+  position: absolute;
+  top: 50%;
+  right: 0.85rem;
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  color: #09090b;
+  background: #d6a64f;
+  border-radius: 999px;
+  box-shadow:
+    0 8px 22px rgb(0 0 0 / 0.35),
+    0 0 0 1px rgb(255 255 255 / 0.16) inset;
+  transform: translateY(-50%);
+  transition:
+    background 220ms ease,
+    transform 220ms ease;
+}
+
+.reveal-card.next-reveal:hover .reveal-cue,
+.reveal-card.next-reveal:focus-visible .reveal-cue {
+  background: #f4d78f;
+  transform: translateY(-50%) translateX(2px);
+}
+
 .reveal-text {
   display: block;
+  margin: 0;
   font-size: 1rem;
   font-weight: 650;
   line-height: 1.44;
@@ -277,9 +314,17 @@ input {
   aspect-ratio: 16 / 9;
 }
 
-.answer-media .reveal-text {
-  font-size: clamp(0.98rem, 2vw, 1.18rem);
-  line-height: 1.52;
+.answer-snippet-body {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.answer-snippet-body .reveal-text {
+  font-size: 0.92rem;
+  font-weight: 500;
+  line-height: 1.55;
+  color: #e4e4e7;
+  white-space: pre-wrap;
 }
 
 .answer-media figcaption {

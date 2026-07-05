@@ -1211,6 +1211,13 @@ watch(initials, () => {
               @keydown.enter.prevent="revealCard(cardIndex)"
               @keydown.space.prevent="revealCard(cardIndex)"
             >
+              <span
+                v-if="canRevealCard(cardIndex)"
+                class="reveal-cue"
+                aria-hidden="true"
+              >
+                <ChevronRight class="size-4" />
+              </span>
               <TipTapRenderer
                 :content="paragraph"
                 :visibleWordsCount="visibleWordsByCard[cardIndex] || 0"
@@ -1305,6 +1312,7 @@ watch(initials, () => {
 
               <div class="answer-media">
                 <TipTapRenderer
+                  class="answer-snippet-body"
                   :content="fullAnswerData.answerSnippet.body"
                   :visibleWordsCount="9999"
                 />

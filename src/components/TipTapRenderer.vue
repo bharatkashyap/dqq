@@ -22,6 +22,7 @@
               {{ word }}
             </span>
           </template>
+          <br v-else-if="child.type === 'hardBreak'" />
         </template>
       </p>
       <img
