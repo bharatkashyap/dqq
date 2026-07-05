@@ -1226,14 +1226,14 @@ watch(guess, () => {
 
               <div
                 ref="answerCarousel"
-                class="answer-slides"
+                class="answer-slides md:max-h-[55vh] max-h-[35vh]"
                 aria-label="Answer slides"
                 @scroll.passive="syncAnswerSlideIndex"
               >
                 <article
                   v-for="(slide, index) in answerSlides"
                   :key="index"
-                  class="answer-slide max-h-[55vh] overflow-y-auto"
+                  class="answer-slide overflow-y-auto"
                   :aria-label="`Answer slide ${index + 1} of ${answerSlides.length}`"
                 >
                   <div class="answer-copy">
