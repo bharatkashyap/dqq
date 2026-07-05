@@ -139,9 +139,9 @@
                 <div v-for="(p, index) in form.paragraphs" :key="index" class="rounded-2xl border border-white/10 bg-white/5 p-4">
                   <div class="mb-3 flex items-center justify-between">
                     <span class="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">
-                      Card {{ index + 1 }}
+                      Card {{ Number(index) + 1 }}
                     </span>
-                    <button class="text-sm text-zinc-500 transition hover:text-red-300" @click="form.paragraphs.splice(index, 1)">
+                    <button class="text-sm text-zinc-500 transition hover:text-red-300" @click="form.paragraphs.splice(Number(index), 1)">
                       Remove
                     </button>
                   </div>
@@ -221,7 +221,38 @@ const archiveQuestions = computed(() => archiveData.value ?? []);
 const createQuestionMutation = useConvexMutation(api.questions.createQuestion);
 const updateQuestionMutation = useConvexMutation(api.questions.updateQuestion);
 
-const emptyForm = (): Partial<Question> => ({
+const formatDateInput = (date: Date) => {
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return localDate.toISOString().slice(0, 10);
+};
+
+const addDaysToDateInput = (dateString: string, days: number) => {
+  const [year, month, day] = dateString.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  date.setDate(date.getDate() + days);
+  return formatDateInput(date);
+};
+
+const suggestedNewQuestionFields = () => {
+  const questions = archiveQuestions.value;
+  const latestQuestion = questions.reduce<Question | null>((latest, question) => {
+    if (!latest || question.date > latest.date) return question;
+    return latest;
+  }, null);
+  const highestNumber = questions.reduce(
+    (highest, question) => Math.max(highest, question.number || 0),
+    0,
+  );
+
+  return {
+    date: latestQuestion
+      ? addDaysToDateInput(latestQuestion.date, 1)
+      : formatDateInput(new Date()),
+    number: highestNumber + 1,
+  };
+};
+
+const emptyForm = (overrides: Partial<Question> = {}): Partial<Question> => ({
   date: "",
   number: 0,
   title: "Daily",
@@ -234,6 +265,7 @@ const emptyForm = (): Partial<Question> => ({
     title: "",
     body: { type: "doc", content: [{ type: "paragraph" }] },
   },
+  ...overrides,
 });
 
 const form = ref<any>(emptyForm());
@@ -287,7 +319,7 @@ function selectQuestion(q: Question) {
 
 function startNewQuestion() {
   selectedQuestionId.value = null;
-  form.value = emptyForm();
+  form.value = emptyForm(suggestedNewQuestionFields());
 }
 
 function addParagraph() {
