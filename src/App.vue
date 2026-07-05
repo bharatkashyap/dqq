@@ -68,6 +68,7 @@ const animatedScore = ref(0);
 const fullAnswerData = ref<any>(null);
 const resultStats = ref<{ playersToday: number; rank: number } | null>(null);
 const answerCarousel = ref<HTMLElement | null>(null);
+const answerInput = ref<HTMLInputElement | null>(null);
 const currentAnswerSlideIndex = ref(0);
 
 const recordCompletion = useConvexMutation(api.questions.recordCompletion);
@@ -104,8 +105,8 @@ const isLocked = computed(
 const playableQuestions = computed(() =>
   dailyQuestions.value.filter((entry) => entry.date <= todayKey),
 );
-const playerInitials = computed(
-  () => initials.value.trim().slice(0, 3).toUpperCase(),
+const playerInitials = computed(() =>
+  initials.value.trim().slice(0, 3).toUpperCase(),
 );
 const archiveQuestions = computed<ArchiveQuestionItem[]>(() => {
   const questions: ArchiveQuestionItem[] = [...playableQuestions.value]
@@ -206,11 +207,7 @@ const rankToday = computed(() => {
   return Math.max(1, Math.min(playersToday.value || 1, fallbackRank));
 });
 const rankLine = computed(
-  () =>
-    `#${rankToday.value} of ${Math.max(playersToday.value, 1)} ${pluralize(
-      Math.max(playersToday.value, 1),
-      "attempt",
-    )}`,
+  () => `#${rankToday.value} of ${Math.max(playersToday.value, 1)}`,
 );
 
 const answerSlides = computed<AnswerSlide[]>(() => {
@@ -491,10 +488,6 @@ function formatDate(date: string) {
   }).format(new Date(`${date}T00:00:00+05:30`));
 }
 
-function pluralize(count: number, singular: string, plural = `${singular}s`) {
-  return count === 1 ? singular : plural;
-}
-
 function updateResetCountdown() {
   const now = new Date();
   const reset = new Date(now);
@@ -752,11 +745,11 @@ async function submitGuess() {
   } else {
     wrongAttempts.value += 1;
     resultTone.value = "wrong";
-    triggerHaptics(24);
+    triggerHaptics(12);
     window.clearTimeout(toneTimer);
     toneTimer = window.setTimeout(() => {
       resultTone.value = "idle";
-    }, 500);
+    }, 1600);
   }
 }
 
@@ -891,6 +884,15 @@ watch(initials, () => {
 
 watch(answerSlides, () => {
   currentAnswerSlideIndex.value = 0;
+});
+
+watch(guess, () => {
+  if (resultTone.value !== "wrong") {
+    return;
+  }
+
+  resultTone.value = "idle";
+  window.clearTimeout(toneTimer);
 });
 </script>
 
@@ -1033,10 +1035,7 @@ watch(answerSlides, () => {
 
           <section
             class="reveal-stack"
-            :class="{
-              'is-right': resultTone === 'right',
-              'is-wrong': resultTone === 'wrong',
-            }"
+            :class="{ 'is-right': resultTone === 'right' }"
           >
             <article
               v-for="(paragraph, cardIndex) in selectedQuestion.paragraphs"
@@ -1077,25 +1076,45 @@ watch(answerSlides, () => {
             >
               {{ selectedQuestion.question }}
             </p>
-            <form
-              class="grid gap-2 sm:grid-cols-[1fr_auto]"
-              @submit.prevent="submitGuess"
-            >
-              <label class="sr-only" for="answer">Answer</label>
-              <input
-                id="answer"
-                v-model="guess"
-                class="h-12 rounded-full border border-zinc-700 bg-transparent px-5 text-base font-bold text-white outline-none placeholder:text-zinc-600 focus:border-[#d6a64f]"
-                autocomplete="off"
-                placeholder="Type answer"
-              />
-              <Button
-                type="submit"
-                class="h-12 rounded-full bg-white px-6 text-black hover:bg-[#f1e4d2]"
+            <div class="guess-area">
+              <form
+                class="guess-form grid gap-2 sm:grid-cols-[1fr_auto]"
+                @submit.prevent="submitGuess"
               >
-                Submit
-              </Button>
-            </form>
+                <label class="sr-only" for="answer">Answer</label>
+                <input
+                  id="answer"
+                  ref="answerInput"
+                  v-model="guess"
+                  class="h-12 rounded-full border bg-transparent px-5 text-base font-bold text-white outline-none transition-colors placeholder:text-zinc-600"
+                  :class="
+                    resultTone === 'wrong'
+                      ? 'border-rose-400 focus:border-rose-300'
+                      : 'border-zinc-700 focus:border-[#d6a64f]'
+                  "
+                  :aria-invalid="resultTone === 'wrong'"
+                  autocomplete="off"
+                  placeholder="Type answer"
+                />
+                <Button
+                  type="submit"
+                  class="h-12 rounded-full bg-white px-6 text-black hover:bg-[#f1e4d2]"
+                >
+                  Submit
+                </Button>
+              </form>
+              <div class="guess-feedback-anchor" aria-live="polite">
+                <Transition name="guess-feedback">
+                  <p
+                    v-if="resultTone === 'wrong'"
+                    class="pointer-events-none block w-fit max-w-full rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm font-medium text-rose-200"
+                    role="status"
+                  >
+                    Not quite — try again.
+                  </p>
+                </Transition>
+              </div>
+            </div>
 
             <div class="h-11">
               <Button
@@ -1137,7 +1156,7 @@ watch(answerSlides, () => {
                 class="flex flex-wrap items-center gap-x-4 gap-y-1 geist-pixel text-base font-black"
               >
                 <span>{{ formattedDate }}</span>
-                <span class="text-emerald-400">{{ rankLine }}!</span>
+                <span class="text-emerald-400">{{ rankLine }}</span>
               </div>
               <p class="mt-3 text-6xl font-black leading-none sm:text-7xl">
                 {{ animatedScoreText }}<span class="text-zinc-600">/50</span>

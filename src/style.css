@@ -162,8 +162,28 @@ input {
   box-shadow: 0 0 0 2px rgb(214 166 79 / 0.75);
 }
 
-.reveal-stack.is-wrong {
-  box-shadow: 0 0 0 2px rgb(239 68 68 / 0.75);
+.guess-area {
+  position: relative;
+  z-index: 1;
+}
+
+.guess-feedback-anchor {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  left: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.guess-feedback-enter-active,
+.guess-feedback-leave-active {
+  transition: opacity 180ms ease;
+}
+
+.guess-feedback-enter-from,
+.guess-feedback-leave-to {
+  opacity: 0;
 }
 
 .reveal-card {
