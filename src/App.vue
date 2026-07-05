@@ -1,14 +1,12 @@
 <script setup lang="ts">
 import {
   CalendarDays,
-  Clipboard,
-  ChevronLeft,
-  ChevronRight,
+  Check,
   Lock,
-  Link2,
   Play,
   Share2,
   Timer,
+  X,
 } from "lucide-vue-next";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
@@ -56,7 +54,6 @@ const initials = ref("");
 const guess = ref("");
 const copied = ref(false);
 const showArchive = ref(false);
-const archiveViewport = ref<HTMLElement | null>(null);
 const currentCardIndex = ref(0);
 const visibleWordsByCard = ref<number[]>([]);
 const elapsedSeconds = ref(0);
@@ -76,6 +73,7 @@ let gameTimer: number | undefined;
 let resetTimer: number | undefined;
 let toneTimer: number | undefined;
 let scoreFrame: number | undefined;
+let shareFeedbackTimer: number | undefined;
 
 const selectedQuestion = computed(() => currentQuestion.value);
 const selectedQuestionUrl = computed(() => {
@@ -256,10 +254,9 @@ const shareText = computed(() => {
   if (!selectedQuestion.value) return "";
   return `Quizgen Daily #${selectedQuestion.value.number}
 ${playerInitials.value} ${score.value}/50
-${elapsedSeconds.value}s · ${visibleCardCount.value} cards · ${totalWordsSeen.value}/${totalAvailableWords.value} words
-Answer: ${fullAnswerData.value?.answerSnippet?.title || "???"}`;
+${elapsedSeconds.value}s · ${visibleCardCount.value} cards · ${totalWordsSeen.value}/${totalAvailableWords.value} words`;
 });
-const shareClipboardText = computed(() => {
+const sharePayloadText = computed(() => {
   if (!shareText.value || !selectedQuestionUrl.value) return shareText.value;
   return `${shareText.value}\n${selectedQuestionUrl.value}`;
 });
@@ -545,29 +542,6 @@ function roundRect(
   ctx.closePath();
 }
 
-async function loadImage(src: string) {
-  return await new Promise<HTMLImageElement | null>((resolve) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => resolve(img);
-    img.onerror = () => resolve(null);
-    img.src = src;
-  });
-}
-
-function canEmbedImage(src: string) {
-  try {
-    const url = new URL(src, window.location.href);
-    return (
-      url.protocol === "data:" ||
-      url.protocol === "blob:" ||
-      url.origin === window.location.origin
-    );
-  } catch {
-    return false;
-  }
-}
-
 async function buildShareImageFile() {
   const width = 1080;
   const height = 1350;
@@ -653,61 +627,44 @@ async function buildShareImageFile() {
     lineY += 50;
   }
 
-  const answerCardY = promptY + 210;
-  const answerCardH = cardH - (answerCardY - cardY) - 44;
+  const statsY = promptY + 238;
+  const statsH = 330;
   ctx.fillStyle = "#1f1f22";
-  roundRect(ctx, cardX + 24, answerCardY, cardW - 48, answerCardH, 34);
+  roundRect(ctx, cardX + 24, statsY, cardW - 48, statsH, 34);
   ctx.fill();
 
-  ctx.fillStyle = "rgba(255,255,255,0.38)";
+  ctx.fillStyle = "rgba(255,255,255,0.46)";
   ctx.font = '800 26px "Avenir Next", sans-serif';
-  ctx.fillText("ANSWER", cardX + 52, answerCardY + 48);
+  ctx.fillText("RESULT", cardX + 52, statsY + 52);
+
+  const stats = [
+    ["TIME", `${elapsedSeconds.value}s`],
+    ["CARDS", String(visibleCardCount.value)],
+    ["WORDS", `${totalWordsSeen.value}/${totalAvailableWords.value}`],
+  ];
+
+  const statW = (cardW - 128) / stats.length;
+  stats.forEach(([label, value], index) => {
+    const x = cardX + 52 + statW * index;
+    ctx.fillStyle = "rgba(255,255,255,0.42)";
+    ctx.font = '800 22px "Avenir Next", sans-serif';
+    ctx.fillText(label, x, statsY + 126);
+    ctx.fillStyle = "#f6f0e4";
+    ctx.font = '800 48px "Avenir Next", sans-serif';
+    ctx.fillText(value, x, statsY + 188);
+  });
 
   ctx.fillStyle = "#e7b64d";
-  ctx.font = '500 72px "Iowan Old Style", Georgia, serif';
-  const answerTitle = fullAnswerData.value?.answerSnippet?.title || "Unknown";
-  ctx.fillText(answerTitle, cardX + 52, answerCardY + 126);
-
-  ctx.fillStyle = "#f4f4f5";
   ctx.font = '700 34px "Avenir Next", sans-serif';
-  const answerBody =
-    fullAnswerData.value?.answerSnippet?.body?.content?.[0]?.content?.[0]
-      ?.text ??
-    fullAnswerData.value?.answerSnippet?.body ??
-    "";
-  const answerLines = wrapText(ctx, String(answerBody), cardW - 104);
-  let bodyY = answerCardY + 206;
-  for (const line of answerLines.slice(0, 4)) {
-    ctx.fillText(line, cardX + 52, bodyY);
-    bodyY += 42;
-  }
-
-  const mediaSrc = fullAnswerData.value?.answerSnippet?.body?.content?.find?.(
-    (node: any) => node.type === "image" && node.attrs?.src,
-  )?.attrs?.src;
-
-  if (mediaSrc && canEmbedImage(mediaSrc)) {
-    const image = await loadImage(mediaSrc);
-    if (image) {
-      const imageX = cardX + 52;
-      const imageY = answerCardY + answerCardH - 260;
-      const imageW = cardW - 104;
-      const imageH = 210;
-
-      ctx.save();
-      roundRect(ctx, imageX, imageY, imageW, imageH, 26);
-      ctx.clip();
-      ctx.fillStyle = "#050505";
-      ctx.fillRect(imageX, imageY, imageW, imageH);
-
-      const scale = Math.max(imageW / image.width, imageH / image.height);
-      const drawW = image.width * scale;
-      const drawH = image.height * scale;
-      const dx = imageX + (imageW - drawW) / 2;
-      const dy = imageY + (imageH - drawH) / 2;
-      ctx.drawImage(image, dx, dy, drawW, drawH);
-      ctx.restore();
-    }
+  const challengeLines = wrapText(
+    ctx,
+    "Think you can solve it earlier?",
+    cardW - 104,
+  );
+  let challengeY = statsY + 274;
+  for (const line of challengeLines.slice(0, 2)) {
+    ctx.fillText(line, cardX + 52, challengeY);
+    challengeY += 42;
   }
 
   ctx.fillStyle = "rgba(255,255,255,0.42)";
@@ -827,6 +784,15 @@ function clearTimers() {
   window.clearInterval(revealTimer);
   window.clearInterval(gameTimer);
   window.clearTimeout(toneTimer);
+  window.clearTimeout(shareFeedbackTimer);
+}
+
+function showShareFeedback() {
+  copied.value = true;
+  window.clearTimeout(shareFeedbackTimer);
+  shareFeedbackTimer = window.setTimeout(() => {
+    copied.value = false;
+  }, 1800);
 }
 
 function startReveal() {
@@ -896,16 +862,6 @@ function revealCard(cardIndex: number) {
   }
 
   revealNextCard();
-}
-
-function scrollArchive(direction: -1 | 1) {
-  const viewport = archiveViewport.value;
-  if (!viewport) return;
-
-  viewport.scrollBy({
-    left: direction * Math.max(240, viewport.clientWidth * 0.72),
-    behavior: "smooth",
-  });
 }
 
 function selectArchiveQuestion(item: (typeof archiveQuestions.value)[number]) {
@@ -1001,7 +957,7 @@ function goHome() {
 }
 
 async function shareScore() {
-  const text = shareClipboardText.value;
+  const text = sharePayloadText.value;
   const file = await buildShareImageFile();
 
   if (file && navigator.share && navigator.canShare?.({ files: [file] })) {
@@ -1011,6 +967,7 @@ async function shareScore() {
       url: selectedQuestionUrl.value,
       files: [file],
     });
+    showShareFeedback();
     return;
   }
 
@@ -1020,16 +977,12 @@ async function shareScore() {
       title: "Quizgen Daily",
       url: selectedQuestionUrl.value,
     });
+    showShareFeedback();
     return;
   }
 
   await navigator.clipboard.writeText(text);
-  copied.value = true;
-}
-
-async function copyScore() {
-  await navigator.clipboard.writeText(shareClipboardText.value);
-  copied.value = true;
+  showShareFeedback();
 }
 
 watch(showArchive, async (open) => {
@@ -1357,123 +1310,158 @@ watch(initials, () => {
               </div>
             </section>
 
-            <div class="grid gap-3 sm:grid-cols-3">
+            <div
+              class="flex justify-center gap-3 pt-0.5 max-sm:pointer-events-none max-sm:sticky max-sm:bottom-4 max-sm:z-20"
+              aria-label="Result actions"
+            >
               <Button
-                variant="outline"
-                class="h-12 rounded-full border-white text-base"
-                @click="copyScore"
-              >
-                <Clipboard class="size-4" />
-                {{ copied ? "Copied" : "Copy" }}
-              </Button>
-              <Button
-                class="h-12 rounded-full bg-white text-base text-black hover:bg-[#f1e4d2]"
+                size="icon"
+                class="pointer-events-auto size-[3.75rem] rounded-full border border-transparent bg-[#f6f0e4] text-[#09090b] shadow-[0_14px_32px_rgb(0_0_0_/_0.34),inset_0_1px_0_rgb(255_255_255_/_0.08)] backdrop-blur-md hover:bg-white sm:size-[3.45rem]"
+                :aria-label="copied ? 'Shared result' : 'Share result'"
+                :title="copied ? 'Shared result' : 'Share result'"
                 @click="shareScore"
               >
-                <Share2 class="size-4" />
-                Share
+                <Check v-if="copied" class="size-5" />
+                <Share2 v-else class="size-5" />
+                <span class="sr-only">
+                  {{ copied ? "Shared result" : "Share result" }}
+                </span>
               </Button>
               <Button
                 variant="outline"
-                class="h-12 rounded-full border-white text-base"
+                size="icon"
+                :class="`pointer-events-auto size-[3.75rem] rounded-full border-white/30 bg-zinc-950/70 text-zinc-100 shadow-[0_14px_32px_rgb(0_0_0_/_0.34),inset_0_1px_0_rgb(255_255_255_/_0.08)] backdrop-blur-md hover:border-[#d6a64f]/70 hover:bg-zinc-900/90 sm:size-[3.45rem] ${showArchive ? 'border-[#d6a64f]/70 bg-zinc-900/90 text-white' : ''}`"
+                :aria-pressed="showArchive"
+                aria-label="Open archive"
+                title="Archive"
                 @click="showArchive = !showArchive"
               >
-                <CalendarDays class="size-4" />
-                Archive
+                <CalendarDays class="size-5" />
+                <span class="sr-only">Archive</span>
               </Button>
             </div>
           </template>
         </div>
 
-        <div
-          v-if="showArchive"
-          class="archive-panel border-t border-white/10 px-6 pb-6 pt-4 sm:px-8"
+        <Transition
+          enter-active-class="transition-opacity duration-200 ease-out"
+          enter-from-class="opacity-0"
+          enter-to-class="opacity-100"
+          leave-active-class="transition-opacity duration-150 ease-in"
+          leave-from-class="opacity-100"
+          leave-to-class="opacity-0"
         >
-          <div class="flex items-center justify-between gap-3 mb-3">
-            <div>
-              <p
-                class="text-xs font-black uppercase tracking-[0.18em] text-zinc-500"
-              >
-                Browse
-              </p>
-            </div>
-            <div class="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="icon"
-                class="size-9 rounded-full border-zinc-700"
-                @click="scrollArchive(-1)"
-              >
-                <ChevronLeft class="size-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                class="size-9 rounded-full border-zinc-700"
-                @click="scrollArchive(1)"
-              >
-                <ChevronRight class="size-4" />
-              </Button>
-            </div>
-          </div>
-
-          <div ref="archiveViewport" class="archive-carousel">
-            <div
-              v-if="isArchiveLoading || !archiveLoaded"
-              class="grid min-h-[180px] gap-3 sm:grid-cols-2 lg:grid-cols-3"
+          <div
+            v-if="showArchive"
+            class="fixed inset-0 z-50 bg-black/85 p-3 text-white sm:p-6"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Daily archive"
+            @click.self="showArchive = false"
+          >
+            <Transition
+              appear
+              enter-active-class="transition duration-200 ease-out"
+              enter-from-class="translate-y-4 scale-[0.98] opacity-0 sm:translate-y-2"
+              enter-to-class="translate-y-0 scale-100 opacity-100"
+              leave-active-class="transition duration-150 ease-in"
+              leave-from-class="translate-y-0 scale-100 opacity-100"
+              leave-to-class="translate-y-3 scale-[0.99] opacity-0"
             >
-              <div
-                v-for="n in 3"
-                :key="n"
-                class="archive-card animate-pulse border-white/10 bg-white/5"
-              ></div>
-            </div>
-            <template v-else>
-              <button
-                v-for="item in archiveQuestions"
-                :key="item.question.date"
-                class="archive-card"
-                :class="{
-                  active: selectedQuestion?.date === item.question.date,
-                  locked: item.locked,
-                }"
-                :disabled="item.locked"
-                @click="selectArchiveQuestion(item)"
+              <section
+                v-if="showArchive"
+                class="mx-auto flex h-full w-full max-w-[650px] transform-gpu flex-col overflow-hidden rounded-[22px] border border-white/10 bg-zinc-950 shadow-[0_26px_80px_rgba(0,0,0,0.5)] will-change-transform max-sm:rounded-none"
               >
-                <div class="flex items-start justify-between gap-3">
+                <header
+                  class="flex shrink-0 items-center justify-between gap-4 border-b border-white/10 px-5 py-4 sm:px-6"
+                >
                   <div>
                     <p
-                      class="text-[0.68rem] font-black uppercase tracking-[0.18em] text-zinc-500"
+                      class="text-xs font-black uppercase tracking-[0.18em] text-zinc-500"
                     >
-                      {{
-                        item.locked
-                          ? "Tomorrow"
-                          : `Daily #${item.question.number}`
-                      }}
+                      Archive
                     </p>
-                    <p class="mt-2 text-lg font-black text-white">
-                      {{
-                        item.locked ? "Locked" : formatDate(item.question.date)
-                      }}
+                    <p class="mt-1 text-2xl font-black text-white">
+                      Daily questions
                     </p>
                   </div>
-                  <Lock v-if="item.locked" class="size-4 text-zinc-500" />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    class="size-11 rounded-full border-white/20 bg-white/5 hover:border-white/40 hover:bg-white/10"
+                    aria-label="Close archive"
+                    title="Close"
+                    @click="showArchive = false"
+                  >
+                    <X class="size-5" />
+                  </Button>
+                </header>
+
+                <div class="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+                  <div
+                    v-if="isArchiveLoading || !archiveLoaded"
+                    class="grid gap-3 sm:grid-cols-2"
+                  >
+                    <div
+                      v-for="n in 6"
+                      :key="n"
+                      class="min-h-36 animate-pulse rounded-2xl border border-white/10 bg-white/5"
+                    ></div>
+                  </div>
+                  <div v-else class="grid gap-3 sm:grid-cols-2">
+                    <button
+                      v-for="item in archiveQuestions"
+                      :key="item.question.date"
+                      class="min-h-36 rounded-2xl border border-zinc-700 bg-zinc-950/80 p-4 text-left transition hover:border-[#d6a64f]/60 hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-70"
+                      :class="{
+                        'border-[#d6a64f]/80 bg-zinc-900 shadow-[0_0_0_1px_rgb(214_166_79_/_0.16)]':
+                          selectedQuestion?.date === item.question.date,
+                      }"
+                      :disabled="item.locked"
+                      @click="selectArchiveQuestion(item)"
+                    >
+                      <div class="flex items-start justify-between gap-3">
+                        <div>
+                          <p
+                            class="text-[0.68rem] font-black uppercase tracking-[0.18em] text-zinc-500"
+                          >
+                            {{
+                              item.locked
+                                ? "Tomorrow"
+                                : `Daily #${item.question.number}`
+                            }}
+                          </p>
+                          <p class="mt-2 text-xl font-black text-white">
+                            {{
+                              item.locked
+                                ? "Locked"
+                                : formatDate(item.question.date)
+                            }}
+                          </p>
+                        </div>
+                        <Lock
+                          v-if="item.locked"
+                          class="size-4 text-zinc-500"
+                        />
+                      </div>
+
+                      <p class="mt-4 text-sm leading-snug text-zinc-400">
+                        {{ item.question.category }}
+                      </p>
+
+                      <p
+                        v-if="!item.locked"
+                        class="mt-5 inline-flex items-center gap-2 rounded-full border border-[#d6a64f]/40 px-3 py-1 text-[0.72rem] font-black uppercase tracking-[0.16em] text-[#d6a64f]"
+                      >
+                        Open
+                      </p>
+                    </button>
+                  </div>
                 </div>
-
-                <p class="mt-4 text-sm leading-snug text-zinc-400">
-                  {{ item.question.category }}
-                </p>
-
-                <p
-                  v-if="!item.locked"
-                  class="mt-5 inline-flex items-center gap-2 rounded-full border border-[#d6a64f]/40 px-3 py-1 text-[0.72rem] font-black uppercase tracking-[0.16em] text-[#d6a64f]"
-                >
-                  Open
-                </p>
-              </button>
-            </template>
+              </section>
+            </Transition>
           </div>
-        </div>
+        </Transition>
       </div>
     </section>
   </main>
