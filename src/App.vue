@@ -62,6 +62,8 @@ const elapsedSeconds = ref(0);
 const wrongAttempts = ref(0);
 const answerQuality = ref(1);
 const resultTone = ref<"idle" | "right" | "wrong">("idle");
+const showSkipChip = ref(false);
+const skipAnimation = ref(false);
 const secondsUntilReset = ref(0);
 const animatedScore = ref(0);
 
@@ -618,8 +620,22 @@ function showShareFeedback() {
   }, 1800);
 }
 
+function handleSkip() {
+  skipAnimation.value = true;
+  showSkipChip.value = false;
+  startReveal();
+}
+
 function startReveal() {
   window.clearInterval(revealTimer);
+
+  if (skipAnimation.value) {
+    const index = currentCardIndex.value;
+    const count = cardWordsCounts.value[index] ?? 0;
+    visibleWordsByCard.value[index] = count;
+    return;
+  }
+
   revealTimer = window.setInterval(() => {
     const index = currentCardIndex.value;
     const shown = visibleWordsByCard.value[index] ?? 0;
@@ -645,6 +661,8 @@ function startGame() {
   guess.value = "";
   copied.value = false;
   showArchive.value = false;
+  showSkipChip.value = true;
+  skipAnimation.value = false;
   currentCardIndex.value = 0;
   visibleWordsByCard.value = selectedQuestion.value?.paragraphs?.map(
     () => 0,
@@ -1292,6 +1310,36 @@ watch(guess, () => {
         </div>
       </div>
     </section>
+
+    <Teleport to="body">
+      <Transition
+        enter-active-class="transition duration-200 ease-out"
+        enter-from-class="translate-y-3 opacity-0"
+        enter-to-class="translate-y-0 opacity-100"
+        leave-active-class="transition duration-150 ease-in"
+        leave-from-class="translate-y-0 opacity-100"
+        leave-to-class="translate-y-3 opacity-0"
+      >
+        <button
+          v-if="showSkipChip"
+          class="pointer-events-auto cursor-pointer fixed bottom-24 left-1/2 z-50 -translate-x-1/2 flex items-center gap-1.5 rounded-full border border-zinc-700 bg-zinc-950/90 px-3 py-1.5 text-xs font-medium text-zinc-300 shadow-xl backdrop-blur-md hover:border-zinc-500 hover:text-white sm:bottom-10"
+          aria-label="Skip animation"
+          title="Skip reveal animation"
+          @click="handleSkip"
+        >
+          Skip animation
+          <span
+            class="flex size-5 shrink-0 items-center justify-center rounded-full hover:bg-zinc-800"
+            role="button"
+            aria-label="Dismiss skip chip"
+            title="Dismiss"
+            @click.stop="showSkipChip = false"
+          >
+            <X class="size-3.5" />
+          </span>
+        </button>
+      </Transition>
+    </Teleport>
 
     <Teleport to="body">
       <Transition
