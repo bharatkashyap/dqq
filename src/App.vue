@@ -19,7 +19,13 @@ import type { Question, StoredResult, GameState } from "@/types";
 import { countWordsInNode } from "@/lib/tiptap";
 import { useConvexClient, useConvexMutation } from "convex-vue";
 import { api } from "../convex/_generated/api";
-import type { Id } from "../convex/_generated/dataModel";
+
+type LockedQuestion = Omit<Question, "_id"> & { _id: string };
+type ArchiveQuestionItem = {
+  question: Question | LockedQuestion;
+  index: number;
+  locked: boolean;
+};
 
 const selectedQuizSlug = ref("daily");
 const route = useRoute();
@@ -38,7 +44,7 @@ const archiveLoaded = ref(false);
 const isArchiveLoading = ref(false);
 const isQuestionLoading = ref(false);
 const questionError = ref("");
-const currentQuestion = ref<Question | null>(null);
+const currentQuestion = ref<Question | LockedQuestion | null>(null);
 const dailyQuestions = computed<Question[]>(() => archiveQuestionsData.value);
 const routeDate = computed(() =>
   typeof route.params.date === "string" ? route.params.date : "",
@@ -99,14 +105,16 @@ const playableQuestions = computed(() =>
 const playerInitials = computed(
   () => initials.value.trim().slice(0, 3).toUpperCase() || "Guest",
 );
-const archiveQuestions = computed(() => {
-  const questions = [...playableQuestions.value].reverse().map((question) => ({
+const archiveQuestions = computed<ArchiveQuestionItem[]>(() => {
+  const questions: ArchiveQuestionItem[] = [...playableQuestions.value]
+    .reverse()
+    .map((question) => ({
     question,
     index: dailyQuestions.value.findIndex(
       (entry) => entry.date === question.date,
     ),
     locked: false,
-  }));
+    }));
 
   const tomorrow = new Date(`${todayKey}T00:00:00+05:30`);
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -117,18 +125,20 @@ const archiveQuestions = computed(() => {
     day: "2-digit",
   }).format(tomorrow);
 
+  const lockedTomorrow: LockedQuestion = {
+    _id: "locked-tomorrow",
+    quizSlug: selectedQuizSlug.value,
+    date: tomorrowDate,
+    title: "Locked",
+    number: (playableQuestions.value.at(0)?.number ?? 0) + 1,
+    category: "Daily",
+    playersToday: 0,
+    question: "Unlocks tomorrow.",
+    paragraphs: [],
+  };
+
   questions.push({
-    question: {
-      _id: "locked-tomorrow" as Id<"questions">,
-      quizSlug: selectedQuizSlug.value,
-      date: tomorrowDate,
-      title: "Locked",
-      number: (playableQuestions.value.at(0)?.number ?? 0) + 1,
-      category: "Daily",
-      playersToday: 0,
-      question: "Unlocks tomorrow.",
-      paragraphs: [],
-    } as Question,
+    question: lockedTomorrow,
     index: -1,
     locked: true,
   });
@@ -261,11 +271,11 @@ function readStoredResult(date: string): StoredResult | null {
   }
 }
 
-function createLockedQuestion(date: string): Question {
+function createLockedQuestion(date: string): LockedQuestion {
   const latestNumber = playableQuestions.value.at(0)?.number ?? 0;
 
   return {
-    _id: `locked-${date}` as Id<"questions">,
+    _id: `locked-${date}`,
     quizSlug: selectedQuizSlug.value,
     date,
     title: "Locked",
@@ -274,10 +284,16 @@ function createLockedQuestion(date: string): Question {
     playersToday: 0,
     question: "Unlocks tomorrow.",
     paragraphs: [],
-  } as Question;
+  };
 }
 
-function setCurrentQuestion(question: Question | null) {
+function isPersistedQuestion(
+  question: Question | LockedQuestion | null,
+): question is Question {
+  return Boolean(question && !question._id.startsWith("locked-"));
+}
+
+function setCurrentQuestion(question: Question | LockedQuestion | null) {
   clearTimers();
   currentQuestion.value = question;
   guess.value = "";
@@ -753,10 +769,11 @@ async function fetchAnswerData(date: string) {
 }
 
 async function fetchResultStats() {
-  if (!selectedQuestion.value) return;
+  const question = selectedQuestion.value;
+  if (!isPersistedQuestion(question)) return;
 
   resultStats.value = await convex.query(api.questions.getResultStats, {
-    questionId: selectedQuestion.value._id,
+    questionId: question._id,
     score: score.value,
   });
 }
@@ -875,11 +892,8 @@ function selectArchiveQuestion(item: (typeof archiveQuestions.value)[number]) {
 }
 
 async function submitGuess() {
-  if (
-    !guess.value.trim() ||
-    gameState.value !== "playing" ||
-    !selectedQuestion.value
-  ) {
+  const question = selectedQuestion.value;
+  if (!guess.value.trim() || gameState.value !== "playing" || !isPersistedQuestion(question)) {
     return;
   }
 
@@ -896,17 +910,12 @@ async function submitGuess() {
     triggerHaptics([18, 36, 18, 60, 42]);
 
     // Check if this was the first time completion and increment playersToday
-    const alreadyCompletedStr = localStorage.getItem(
-      `quizgen-completed:${selectedQuestion.value.date}`,
-    );
+    const alreadyCompletedStr = localStorage.getItem(`quizgen-completed:${question.date}`);
     if (!alreadyCompletedStr) {
-      localStorage.setItem(
-        `quizgen-completed:${selectedQuestion.value.date}`,
-        "true",
-      );
+      localStorage.setItem(`quizgen-completed:${question.date}`, "true");
       try {
         await recordCompletion.mutate({
-          id: selectedQuestion.value._id as Id<"questions">,
+          id: question._id,
           score: score.value,
           elapsedSeconds: elapsedSeconds.value,
           visibleCardCount: visibleCardCount.value,

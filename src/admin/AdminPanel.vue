@@ -197,6 +197,7 @@ import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useConvexMutation, useConvexQuery } from "convex-vue";
 import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
 import RichEditor from "./components/RichEditor.vue";
 import { useAdminAuth } from "@/lib/admin-auth";
 import type { Question } from "../types";
@@ -204,7 +205,7 @@ import type { Question } from "../types";
 const router = useRouter();
 const auth = useAdminAuth();
 const selectedQuizSlug = ref("daily");
-const selectedQuestionId = ref<string | null>(null);
+const selectedQuestionId = ref<Id<"questions"> | null>(null);
 
 const { data: viewerData } = useConvexQuery(api.admin.viewer, {});
 const viewer = viewerData;
@@ -297,8 +298,11 @@ async function saveQuestion() {
   saving.value = true;
   try {
     if (isEditing.value) {
+      const id = selectedQuestionId.value;
+      if (!id) return;
+
       await updateQuestionMutation.mutate({
-        id: selectedQuestionId.value as any,
+        id,
         title: form.value.title,
         answer: form.value.answer,
         answerKeywords: form.value.answerKeywords,

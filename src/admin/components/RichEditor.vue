@@ -60,7 +60,6 @@ import { Editor, EditorContent } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import TextAlign from "@tiptap/extension-text-align";
-import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { useConvexMutation } from "convex-vue";
 import { api } from "../../../convex/_generated/api";
 
@@ -91,58 +90,6 @@ const uploadImage = async (file: File): Promise<string> => {
   return url;
 };
 
-const FileHandlerPlugin = new Plugin({
-  key: new PluginKey("FileHandler"),
-  props: {
-    handlePaste(view, event) {
-      const items = Array.from(event.clipboardData?.items || []);
-      const images = items.filter((item) => item.type.indexOf("image") === 0);
-      if (images.length === 0) return false;
-
-      images.forEach(async (item) => {
-        const file = item.getAsFile();
-        if (!file) return;
-
-        try {
-          const url = await uploadImage(file);
-          const node = view.state.schema.nodes.image.create({ src: url });
-          const transaction = view.state.tr.replaceSelectionWith(node);
-          view.dispatch(transaction);
-        } catch (e) {
-          console.error("Image upload failed", e);
-        }
-      });
-      return true;
-    },
-    handleDrop(view, event, slice, moved) {
-      if (moved || !event.dataTransfer?.files.length) return false;
-
-      const files = Array.from(event.dataTransfer.files).filter(
-        (file) => file.type.indexOf("image") === 0,
-      );
-      if (files.length === 0) return false;
-
-      files.forEach(async (file) => {
-        try {
-          const url = await uploadImage(file);
-          const coordinates = view.posAtCoords({
-            left: event.clientX,
-            top: event.clientY,
-          });
-          if (!coordinates) return;
-
-          const node = view.state.schema.nodes.image.create({ src: url });
-          const transaction = view.state.tr.insert(coordinates.pos, node);
-          view.dispatch(transaction);
-        } catch (e) {
-          console.error("Image upload failed", e);
-        }
-      });
-      return true;
-    },
-  },
-});
-
 onMounted(() => {
   editor.value = new Editor({
     content: props.modelValue || {
@@ -153,18 +100,63 @@ onMounted(() => {
       StarterKit,
       Image,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
-      // Add custom paste/drop plugin
-      {
-        name: "fileHandler",
-        addProseMirrorPlugins() {
-          return [FileHandlerPlugin];
-        },
-      } as any,
     ],
     onUpdate: () => {
       emit("update:modelValue", editor.value?.getJSON());
     },
     editorProps: {
+      handlePaste(view, event) {
+        const items = Array.from(event.clipboardData?.items || []);
+        const images = items.filter((item) => item.type.startsWith("image"));
+        if (images.length === 0) return false;
+
+        void Promise.all(
+          images.map(async (item) => {
+            const file = item.getAsFile();
+            if (!file) return;
+
+            try {
+              const url = await uploadImage(file);
+              const node = view.state.schema.nodes.image.create({ src: url });
+              const transaction = view.state.tr.replaceSelectionWith(node);
+              view.dispatch(transaction);
+            } catch (e) {
+              console.error("Image upload failed", e);
+            }
+          }),
+        );
+
+        return true;
+      },
+      handleDrop(view, event, _slice, moved) {
+        if (moved || !event.dataTransfer?.files.length) return false;
+
+        const files = Array.from(event.dataTransfer.files).filter((file) =>
+          file.type.startsWith("image"),
+        );
+        if (files.length === 0) return false;
+
+        void Promise.all(
+          files.map(async (file) => {
+            try {
+              const url = await uploadImage(file);
+              const coordinates = view.posAtCoords({
+                left: event.clientX,
+                top: event.clientY,
+              });
+              if (!coordinates) return;
+
+              const node = view.state.schema.nodes.image.create({ src: url });
+              const transaction = view.state.tr.insert(coordinates.pos, node);
+              view.dispatch(transaction);
+            } catch (e) {
+              console.error("Image upload failed", e);
+            }
+          }),
+        );
+
+        return true;
+      },
       attributes: {
         class: "prose prose-sm prose-invert focus:outline-none min-h-[100px]",
       },
