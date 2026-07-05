@@ -320,6 +320,7 @@ input {
 /* ── Slides strip ── */
 .answer-slides {
   display: flex;
+  align-items: flex-start;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   scrollbar-width: none;

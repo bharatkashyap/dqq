@@ -55,7 +55,6 @@ const gameState = ref<GameState>("intro");
 const initials = ref("");
 const guess = ref("");
 const copied = ref(false);
-const editingInitials = ref(false);
 const showArchive = ref(false);
 const currentCardIndex = ref(0);
 const visibleWordsByCard = ref<number[]>([]);
@@ -106,7 +105,7 @@ const playableQuestions = computed(() =>
   dailyQuestions.value.filter((entry) => entry.date <= todayKey),
 );
 const playerInitials = computed(
-  () => initials.value.trim().slice(0, 3).toUpperCase() || "Guest",
+  () => initials.value.trim().slice(0, 3).toUpperCase(),
 );
 const archiveQuestions = computed<ArchiveQuestionItem[]>(() => {
   const questions: ArchiveQuestionItem[] = [...playableQuestions.value]
@@ -279,21 +278,15 @@ const animatedScoreText = computed(() => formatScore(animatedScore.value));
 
 const shareText = computed(() => {
   if (!selectedQuestion.value) return "";
+  const initialsPrefix = playerInitials.value ? `${playerInitials.value} ` : "";
   return `Quizgen Daily #${selectedQuestion.value.number}
-${playerInitials.value} ${score.value}/50
+${initialsPrefix}${score.value}/50
 ${elapsedSeconds.value}s · ${visibleCardCount.value} cards · ${totalWordsSeen.value}/${totalAvailableWords.value} words`;
 });
 const sharePayloadText = computed(() => {
   if (!shareText.value || !selectedQuestionUrl.value) return shareText.value;
   return `${shareText.value}\n${selectedQuestionUrl.value}`;
 });
-
-function commitInitials() {
-  saveInitials();
-  // Overwrite any stored result for the current question so initials persist
-  writeStoredResult();
-  editingInitials.value = false;
-}
 
 function storageKey(date: string) {
   return `quizgen-daily-result:${date}`;
@@ -891,6 +884,9 @@ watch(score, (value) => {
 
 watch(initials, () => {
   saveInitials();
+  if (gameState.value === "result") {
+    writeStoredResult();
+  }
 });
 
 watch(answerSlides, () => {
@@ -1234,50 +1230,18 @@ watch(answerSlides, () => {
               aria-label="Result actions"
             >
               <!-- Initials editor -->
-              <div class="pointer-events-auto flex items-center">
-                <Transition
-                  enter-active-class="transition-all duration-200 ease-out"
-                  enter-from-class="opacity-0 w-0"
-                  enter-to-class="opacity-100 w-[7rem]"
-                  leave-active-class="transition-all duration-150 ease-in"
-                  leave-from-class="opacity-100 w-[7rem]"
-                  leave-to-class="opacity-0 w-0"
-                >
-                  <input
-                    v-if="editingInitials"
-                    id="result-initials"
-                    v-model="initials"
-                    type="text"
-                    maxlength="3"
-                    autocomplete="off"
-                    autocorrect="off"
-                    spellcheck="false"
-                    placeholder="ABC"
-                    aria-label="Edit initials"
-                    class="w-[7rem] rounded-full border border-[#d6a64f]/60 bg-zinc-950/80 px-4 py-0 text-center text-sm font-bold uppercase tracking-widest text-white shadow-[0_14px_32px_rgb(0_0_0_/_0.34)] backdrop-blur-md outline-none focus:border-[#d6a64f] h-[3.75rem] sm:h-[3.45rem]"
-                    @keydown.enter="commitInitials"
-                    @keydown.escape="editingInitials = false"
-                    @blur="commitInitials"
-                  />
-                </Transition>
-                <button
-                  type="button"
-                  class="flex size-[3.75rem] items-center justify-center rounded-full border border-white/20 bg-zinc-950/70 text-sm font-bold uppercase tracking-widest text-zinc-300 shadow-[0_14px_32px_rgb(0_0_0_/_0.34),inset_0_1px_0_rgb(255_255_255_/_0.08)] backdrop-blur-md transition hover:border-[#d6a64f]/60 hover:text-[#d6a64f] sm:size-[3.45rem]"
-                  :aria-label="
-                    editingInitials ? 'Done editing initials' : 'Edit initials'
-                  "
-                  :title="
-                    editingInitials ? 'Done' : `Initials: ${playerInitials}`
-                  "
-                  @click="
-                    editingInitials
-                      ? commitInitials()
-                      : (editingInitials = true)
-                  "
-                >
-                  {{ playerInitials }}
-                </button>
-              </div>
+              <input
+                id="result-initials"
+                v-model="initials"
+                type="text"
+                maxlength="3"
+                autocomplete="off"
+                autocorrect="off"
+                spellcheck="false"
+                placeholder="---"
+                aria-label="Edit initials"
+                class="pointer-events-auto h-[3.75rem] w-[5rem] rounded-full border border-white/20 bg-zinc-950/70 px-3 text-center text-sm font-bold uppercase tracking-widest text-white shadow-[0_14px_32px_rgb(0_0_0_/_0.34),inset_0_1px_0_rgb(255_255_255_/_0.08)] backdrop-blur-md outline-none transition hover:border-white/40 focus:border-[#d6a64f] sm:h-[3.45rem]"
+              />
 
               <Button
                 size="icon"
