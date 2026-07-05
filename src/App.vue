@@ -1170,7 +1170,7 @@ watch(initials, () => {
           class="relative grid min-h-[590px] content-between gap-8 p-7 sm:min-h-[620px] sm:p-10"
         >
           <div class="flex items-center justify-between gap-4">
-            <div>
+            <div class="geist-pixel">
               <p class="text-sm font-bold text-zinc-400">
                 {{ visibleCardCount }} /
                 {{ selectedQuestion.paragraphs.length }}
@@ -1343,7 +1343,6 @@ watch(initials, () => {
             </div>
           </template>
         </div>
-
       </div>
     </section>
 
@@ -1425,7 +1424,9 @@ watch(initials, () => {
                         item.locked ? "Locked" : formatDate(item.question.date)
                       }}
                     </p>
-                    <p class="mt-2 truncate text-base font-semibold text-zinc-400">
+                    <p
+                      class="mt-2 truncate text-base font-semibold text-zinc-400"
+                    >
                       {{ item.question.category }}
                     </p>
                   </div>
