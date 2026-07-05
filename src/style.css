@@ -275,8 +275,6 @@ input {
 
 .answer-copy h2 {
   margin: 0.35rem 0 0;
-  font-family:
-    "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, ui-serif, serif;
   font-size: clamp(1.55rem, 3.6vw, 2.1rem);
   font-weight: 500;
   line-height: 1.05;
