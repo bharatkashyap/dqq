@@ -447,7 +447,8 @@ const normalizeAnswerSlides = (
 
   return source.map((slide, index) => {
     const title = slide.title?.trim() || (index === 0 ? "Answer" : "More");
-    const subtitle = slide.subtitle?.trim();
+    const slideData = slide as AnswerSlide;
+    const subtitle = slideData.subtitle?.trim();
     const normalized: AnswerSlide = {
       title,
       body: slide.body ?? emptyRichTextDoc(),
@@ -455,6 +456,9 @@ const normalizeAnswerSlides = (
 
     if (subtitle) {
       normalized.subtitle = subtitle;
+    }
+    if (slideData.audioUrl) {
+      normalized.audioUrl = slideData.audioUrl;
     }
 
     return normalized;

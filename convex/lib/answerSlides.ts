@@ -14,6 +14,7 @@ export const answerSlideValidator = v.object({
   title: v.string(),
   subtitle: v.optional(v.string()),
   body: v.any(),
+  audioUrl: v.optional(v.string()),
 });
 
 export const answerSlidesValidator = v.array(answerSlideValidator);
@@ -27,6 +28,7 @@ export type AnswerSlide = {
   title: string;
   subtitle?: string;
   body: unknown;
+  audioUrl?: string;
 };
 
 function normalizeSlide(slide: Partial<AnswerSlide>, fallbackTitle: string) {
@@ -39,6 +41,9 @@ function normalizeSlide(slide: Partial<AnswerSlide>, fallbackTitle: string) {
 
   if (subtitle) {
     normalized.subtitle = subtitle;
+  }
+  if (slide.audioUrl) {
+    normalized.audioUrl = slide.audioUrl;
   }
 
   return normalized;

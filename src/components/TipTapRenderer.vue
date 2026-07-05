@@ -36,6 +36,40 @@
             isMediaVisible(nodeIdx),
         }"
       />
+      <div
+        v-else-if="node.type === 'audio'"
+        class="mt-4"
+        :class="{
+          'opacity-0': !isMediaVisible(nodeIdx),
+          'opacity-100 transition-opacity duration-500':
+            isMediaVisible(nodeIdx),
+        }"
+      >
+        <audio
+          :src="node.attrs?.src"
+          :controls="isMediaVisible(nodeIdx)"
+          class="w-full"
+        >
+          <track kind="captions" />
+        </audio>
+      </div>
+      <div
+        v-else-if="node.type === 'video'"
+        class="mt-4"
+        :class="{
+          'opacity-0': !isMediaVisible(nodeIdx),
+          'opacity-100 transition-opacity duration-500':
+            isMediaVisible(nodeIdx),
+        }"
+      >
+        <video
+          :src="node.attrs?.src"
+          :controls="isMediaVisible(nodeIdx)"
+          class="w-full rounded-lg"
+        >
+          <track kind="captions" />
+        </video>
+      </div>
     </template>
   </div>
 </template>

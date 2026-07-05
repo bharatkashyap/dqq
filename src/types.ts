@@ -4,6 +4,7 @@ export type AnswerSlide = {
   title: string;
   subtitle?: string;
   body: any;
+  audioUrl?: string;
 };
 
 export type Question = {

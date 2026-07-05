@@ -46,6 +46,14 @@
       >
         Right
       </button>
+      <div class="h-4 w-px bg-zinc-700 mx-1"></div>
+      <button
+        @click="addAudio"
+        class="rounded px-2 py-1 hover:bg-zinc-800"
+        title="Add audio"
+      >
+        Audio
+      </button>
     </div>
     <editor-content
       :editor="editor"
@@ -59,6 +67,7 @@ import { ref, onMounted, onBeforeUnmount, watch } from "vue";
 import { Editor, EditorContent } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
+import Audio from "@tiptap/extension-audio";
 import TextAlign from "@tiptap/extension-text-align";
 import { useConvexMutation } from "convex-vue";
 import { api } from "../../../convex/_generated/api";
@@ -77,7 +86,7 @@ const generateUrl = useConvexMutation(api.files.generateUploadUrl);
 import { useConvexClient } from "convex-vue";
 const convex = useConvexClient();
 
-const uploadImage = async (file: File): Promise<string> => {
+const uploadFile = async (file: File): Promise<string> => {
   const postUrl = await generateUrl.mutate({});
   const result = await fetch(postUrl, {
     method: "POST",
@@ -90,6 +99,23 @@ const uploadImage = async (file: File): Promise<string> => {
   return url;
 };
 
+const addAudio = async () => {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "audio/*";
+  input.onchange = async () => {
+    const file = input.files?.[0];
+    if (!file || !editor.value) return;
+    try {
+      const url = await uploadFile(file);
+      editor.value.commands.setAudio({ src: url });
+    } catch (e) {
+      console.error("Audio upload failed", e);
+    }
+  };
+  input.click();
+};
+
 onMounted(() => {
   editor.value = new Editor({
     content: props.modelValue || {
@@ -99,6 +125,7 @@ onMounted(() => {
     extensions: [
       StarterKit,
       Image,
+      Audio,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
     ],
     onUpdate: () => {
@@ -107,21 +134,27 @@ onMounted(() => {
     editorProps: {
       handlePaste(view, event) {
         const items = Array.from(event.clipboardData?.items || []);
-        const images = items.filter((item) => item.type.startsWith("image"));
-        if (images.length === 0) return false;
+        const files = items.filter((item) => item.kind === "file");
+        if (files.length === 0) return false;
 
         void Promise.all(
-          images.map(async (item) => {
+          files.map(async (item) => {
             const file = item.getAsFile();
             if (!file) return;
 
+            let nodeType: "image" | "audio" | null = null;
+            if (file.type.startsWith("image")) nodeType = "image";
+            else if (file.type.startsWith("audio")) nodeType = "audio";
+
+            if (!nodeType) return;
+
             try {
-              const url = await uploadImage(file);
-              const node = view.state.schema.nodes.image.create({ src: url });
+              const url = await uploadFile(file);
+              const node = view.state.schema.nodes[nodeType].create({ src: url });
               const transaction = view.state.tr.replaceSelectionWith(node);
               view.dispatch(transaction);
             } catch (e) {
-              console.error("Image upload failed", e);
+              console.error(`${nodeType} upload failed`, e);
             }
           }),
         );
@@ -131,26 +164,35 @@ onMounted(() => {
       handleDrop(view, event, _slice, moved) {
         if (moved || !event.dataTransfer?.files.length) return false;
 
-        const files = Array.from(event.dataTransfer.files).filter((file) =>
-          file.type.startsWith("image"),
-        );
+        const files = Array.from(event.dataTransfer.files).filter((file) => {
+          if (file.type.startsWith("image")) return true;
+          if (file.type.startsWith("audio")) return true;
+          return false;
+        });
+
         if (files.length === 0) return false;
 
         void Promise.all(
           files.map(async (file) => {
+            let nodeType: "image" | "audio" | null = null;
+            if (file.type.startsWith("image")) nodeType = "image";
+            else if (file.type.startsWith("audio")) nodeType = "audio";
+
+            if (!nodeType) return;
+
             try {
-              const url = await uploadImage(file);
+              const url = await uploadFile(file);
               const coordinates = view.posAtCoords({
                 left: event.clientX,
                 top: event.clientY,
               });
               if (!coordinates) return;
 
-              const node = view.state.schema.nodes.image.create({ src: url });
+              const node = view.state.schema.nodes[nodeType].create({ src: url });
               const transaction = view.state.tr.insert(coordinates.pos, node);
               view.dispatch(transaction);
             } catch (e) {
-              console.error("Image upload failed", e);
+              console.error(`${nodeType} upload failed`, e);
             }
           }),
         );
@@ -188,6 +230,10 @@ watch(
 .ProseMirror img {
   max-width: 100%;
   height: auto;
+  border-radius: 0.5rem;
+}
+.ProseMirror audio {
+  max-width: 100%;
   border-radius: 0.5rem;
 }
 </style>
