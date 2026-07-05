@@ -36,4 +36,11 @@ export type StoredResult = {
   skipped?: boolean;
 };
 
+export type QuestionProgress = {
+  currentCardIndex: number;
+  elapsedSeconds: number;
+  skipAnimation: boolean;
+  visibleWordsByCard: number[];
+};
+
 export type GameState = "intro" | "playing" | "result";

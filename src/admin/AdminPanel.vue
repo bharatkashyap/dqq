@@ -8,9 +8,7 @@
           Quiz Admin
         </p>
         <h2 class="mt-2 text-2xl font-black tracking-tight">Dashboard</h2>
-        <p class="mt-1 text-sm text-zinc-400">
-          Manage daily questions and answer reveals.
-        </p>
+        <p class="mt-1 text-sm text-zinc-400">Manage questions and answers</p>
       </div>
 
       <div class="border-b border-white/10 p-5">

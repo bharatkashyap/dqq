@@ -15,7 +15,13 @@ import { useRoute, useRouter } from "vue-router";
 
 import Button from "@/components/ui/Button.vue";
 import TipTapRenderer from "@/components/TipTapRenderer.vue";
-import type { AnswerSlide, Question, StoredResult, GameState } from "@/types";
+import type {
+  AnswerSlide,
+  Question,
+  StoredResult,
+  QuestionProgress,
+  GameState,
+} from "@/types";
 import { countWordsInNode } from "@/lib/tiptap";
 import { useConvexClient, useConvexMutation } from "convex-vue";
 import { api } from "../convex/_generated/api";
@@ -302,10 +308,23 @@ function storageKey(date: string) {
   return `quizgen-daily-result:${date}`;
 }
 
+function progressKey(date: string) {
+  return `quizgen-daily-progress:${date}`;
+}
+
 function readStoredResult(date: string): StoredResult | null {
   try {
     const raw = window.localStorage.getItem(storageKey(date));
     return raw ? (JSON.parse(raw) as StoredResult) : null;
+  } catch {
+    return null;
+  }
+}
+
+function readQuestionProgress(date: string): QuestionProgress | null {
+  try {
+    const raw = window.localStorage.getItem(progressKey(date));
+    return raw ? (JSON.parse(raw) as QuestionProgress) : null;
   } catch {
     return null;
   }
@@ -350,6 +369,8 @@ function setCurrentQuestion(question: Question | LockedQuestion | null) {
   resultStats.value = null;
   currentAnswerSlideIndex.value = 0;
   hasSkipped.value = false;
+  skipAnimation.value = false;
+  showSkipChip.value = false;
 
   if (!question) {
     gameState.value = "intro";
@@ -361,7 +382,22 @@ function setCurrentQuestion(question: Question | LockedQuestion | null) {
     return;
   }
 
-  gameState.value = hydrateStoredResult(question) ? "result" : "intro";
+  if (hydrateStoredResult(question)) {
+    return;
+  }
+
+  const progress = readQuestionProgress(question.date);
+  if (progress) {
+    elapsedSeconds.value = progress.elapsedSeconds;
+    currentCardIndex.value = Math.max(0, progress.currentCardIndex ?? 0);
+    visibleWordsByCard.value = progress.visibleWordsByCard ?? [];
+    skipAnimation.value = progress.skipAnimation ?? false;
+    showSkipChip.value = !skipAnimation.value;
+  } else {
+    showSkipChip.value = true;
+  }
+
+  gameState.value = "intro";
 }
 
 function applyQuestionSelection(index: number) {
@@ -459,6 +495,20 @@ function writeStoredResult(question = selectedQuestion.value) {
   );
 }
 
+function saveQuestionProgress(question = selectedQuestion.value) {
+  if (!question || gameState.value === "result") return;
+  const progress: QuestionProgress = {
+    currentCardIndex: currentCardIndex.value,
+    elapsedSeconds: elapsedSeconds.value,
+    skipAnimation: skipAnimation.value,
+    visibleWordsByCard: [...visibleWordsByCard.value],
+  };
+  window.localStorage.setItem(
+    progressKey(question.date),
+    JSON.stringify(progress),
+  );
+}
+
 function saveInitials() {
   const value = initials.value.trim().slice(0, 3).toUpperCase();
   if (value) {
@@ -490,6 +540,7 @@ function hydrateStoredResult(question = selectedQuestion.value) {
     ),
   );
   gameState.value = "result";
+  window.localStorage.removeItem(progressKey(question.date));
   fetchAnswerData(question.date);
   fetchResultStats();
   animateScore(score.value);
@@ -501,7 +552,8 @@ function formatDate(date: string) {
     month: "long",
     day: "numeric",
     year: "numeric",
-  }).format(new Date(`${date}T00:00:00+07:00`));
+    timeZone: "UTC",
+  }).format(new Date(`${date}T00:00:00Z`));
 }
 
 function updateResetCountdown() {
@@ -642,6 +694,7 @@ function showShareFeedback() {
 
 function handleSkip() {
   skipAnimation.value = true;
+  saveQuestionProgress();
   showSkipChip.value = false;
   startReveal();
 }
@@ -655,6 +708,7 @@ async function skipToAnswer() {
   resultTone.value = "right";
   clearTimers();
   writeStoredResult();
+  window.localStorage.removeItem(progressKey(selectedQuestion.value!.date));
   saveInitials();
   animateScore(score.value);
   await fetchAnswerData(selectedQuestion.value!.date);
@@ -685,7 +739,11 @@ function startReveal() {
 }
 
 function startGame() {
-  if (isLocked.value || hydrateStoredResult()) {
+  if (isLocked.value) {
+    return;
+  }
+
+  if (hydrateStoredResult()) {
     return;
   }
 
@@ -695,19 +753,44 @@ function startGame() {
   guess.value = "";
   copied.value = false;
   showArchive.value = false;
-  showSkipChip.value = true;
-  skipAnimation.value = false;
-  currentCardIndex.value = 0;
-  visibleWordsByCard.value = selectedQuestion.value?.paragraphs?.map(
-    () => 0,
-  ) ?? [0];
-  elapsedSeconds.value = 0;
-  wrongAttempts.value = 0;
   answerQuality.value = 1;
   resultTone.value = "idle";
 
+  const progress = readQuestionProgress(selectedQuestion.value!.date);
+  if (progress) {
+    elapsedSeconds.value = progress.elapsedSeconds;
+    currentCardIndex.value = Math.max(0, progress.currentCardIndex ?? 0);
+    visibleWordsByCard.value = selectedQuestion.value?.paragraphs.map(
+      (_, i) => {
+        if (i < progress.currentCardIndex!) {
+          return cardWordsCounts.value[i] ?? 0;
+        }
+        if (i === progress.currentCardIndex) {
+          return visibleWordsByCard.value[i] ?? 0;
+        }
+        return 0;
+      },
+    ) ?? [0];
+    skipAnimation.value = progress.skipAnimation ?? false;
+    showSkipChip.value = !skipAnimation.value;
+  } else {
+    elapsedSeconds.value = 0;
+    currentCardIndex.value = 0;
+    visibleWordsByCard.value = selectedQuestion.value?.paragraphs?.map(
+      () => 0,
+    ) ?? [0];
+    skipAnimation.value = false;
+    showSkipChip.value = true;
+  }
+  if (gameTimer) {
+    window.clearInterval(gameTimer);
+  }
+
   gameTimer = window.setInterval(() => {
     elapsedSeconds.value += 1;
+    if (elapsedSeconds.value % 5 === 0) {
+      saveQuestionProgress();
+    }
   }, 1000);
   startReveal();
 }
@@ -720,6 +803,7 @@ function revealNextCard() {
 
   currentCardIndex.value += 1;
   triggerHaptics(12);
+  saveQuestionProgress();
   startReveal();
 }
 
