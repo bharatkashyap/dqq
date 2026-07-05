@@ -1,5 +1,7 @@
+import type { Id } from "../convex/_generated/dataModel";
+
 export type Question = {
-  _id: string;
+  _id: Id<"questions">;
   quizSlug: string;
   date: string;
   title: string;

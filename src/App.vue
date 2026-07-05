@@ -19,6 +19,7 @@ import type { Question, StoredResult, GameState } from "@/types";
 import { countWordsInNode } from "@/lib/tiptap";
 import { useConvexClient, useConvexMutation } from "convex-vue";
 import { api } from "../convex/_generated/api";
+import type { Id } from "../convex/_generated/dataModel";
 
 const selectedQuizSlug = ref("daily");
 const route = useRoute();
@@ -26,7 +27,7 @@ const router = useRouter();
 const convex = useConvexClient();
 
 const todayKey = new Intl.DateTimeFormat("en-CA", {
-  timezone: "Asia/Bangkok",
+  timeZone: "Asia/Bangkok",
   year: "numeric",
   month: "2-digit",
   day: "2-digit",
@@ -110,7 +111,7 @@ const archiveQuestions = computed(() => {
   const tomorrow = new Date(`${todayKey}T00:00:00+05:30`);
   tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowDate = new Intl.DateTimeFormat("en-CA", {
-    timezone: "Asia/Bangkok",
+    timeZone: "Asia/Bangkok",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -118,7 +119,7 @@ const archiveQuestions = computed(() => {
 
   questions.push({
     question: {
-      _id: "locked-tomorrow",
+      _id: "locked-tomorrow" as Id<"questions">,
       quizSlug: selectedQuizSlug.value,
       date: tomorrowDate,
       title: "Locked",
@@ -264,7 +265,7 @@ function createLockedQuestion(date: string): Question {
   const latestNumber = playableQuestions.value.at(0)?.number ?? 0;
 
   return {
-    _id: `locked-${date}`,
+    _id: `locked-${date}` as Id<"questions">,
     quizSlug: selectedQuizSlug.value,
     date,
     title: "Locked",
@@ -833,7 +834,9 @@ function startGame() {
   copied.value = false;
   showArchive.value = false;
   currentCardIndex.value = 0;
-  visibleWordsByCard.value = selectedQuestion.value.paragraphs.map(() => 0);
+  visibleWordsByCard.value = selectedQuestion.value?.paragraphs?.map(
+    () => 0,
+  ) ?? [0];
   elapsedSeconds.value = 0;
   wrongAttempts.value = 0;
   answerQuality.value = 1;
@@ -903,7 +906,7 @@ async function submitGuess() {
       );
       try {
         await recordCompletion.mutate({
-          id: selectedQuestion.value._id as any,
+          id: selectedQuestion.value._id as Id<"questions">,
           score: score.value,
           elapsedSeconds: elapsedSeconds.value,
           visibleCardCount: visibleCardCount.value,
