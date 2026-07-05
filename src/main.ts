@@ -1,6 +1,18 @@
-import { createApp } from "vue"
+import { createApp } from "vue";
+import { convexVue } from "convex-vue";
+import "./style.css";
+import { router } from "./router";
+import AppRoot from "./AppRoot.vue";
+import { useAdminAuth } from "@/lib/admin-auth";
 
-import App from "./App.vue"
-import "./style.css"
+const app = createApp(AppRoot);
 
-createApp(App).mount("#app")
+app.use(router);
+
+app.use(convexVue, {
+  url: import.meta.env.VITE_CONVEX_URL,
+});
+
+void useAdminAuth().bootstrap();
+
+app.mount("#app");
