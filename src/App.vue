@@ -64,6 +64,7 @@ const answerQuality = ref(1);
 const resultTone = ref<"idle" | "right" | "wrong">("idle");
 const showSkipChip = ref(false);
 const skipAnimation = ref(false);
+const hasSkipped = ref(false);
 const secondsUntilReset = ref(0);
 const animatedScore = ref(0);
 
@@ -239,6 +240,10 @@ const score = computed(() => {
     return 0;
   }
 
+  if (hasSkipped.value) {
+    return 0;
+  }
+
   const paragraphPenalty = Math.max(0, visibleCardCount.value - 1) * 8.5;
   const wordPenalty = totalWordsSeen.value * 0.05;
   const timePenalty = elapsedSeconds.value * 0.025;
@@ -259,6 +264,9 @@ const score = computed(() => {
 });
 
 const scoreLine = computed(() => {
+  if (hasSkipped.value) {
+    return "Skipped to reveal. No score recorded.";
+  }
   const phrases = [
     { min: 45, text: "Clean strike. Barely any trail exposed." },
     { min: 36, text: "Sharp read. You caught the pattern early." },
@@ -273,13 +281,16 @@ const scoreLine = computed(() => {
   );
 });
 
-const animatedScoreText = computed(() => formatScore(animatedScore.value));
+const animatedScoreText = computed(() =>
+  hasSkipped.value ? "--" : formatScore(animatedScore.value),
+);
 
 const shareText = computed(() => {
   if (!selectedQuestion.value) return "";
   const initialsPrefix = playerInitials.value ? `${playerInitials.value} ` : "";
+  const scoreText = hasSkipped.value ? "--" : score.value.toString();
   return `Quizgen Daily #${selectedQuestion.value.number}
-${initialsPrefix}${score.value}/50
+${initialsPrefix}${scoreText}/50
 ${elapsedSeconds.value}s · ${visibleCardCount.value} cards · ${totalWordsSeen.value}/${totalAvailableWords.value} words`;
 });
 const sharePayloadText = computed(() => {
@@ -338,6 +349,7 @@ function setCurrentQuestion(question: Question | LockedQuestion | null) {
   fullAnswerData.value = null;
   resultStats.value = null;
   currentAnswerSlideIndex.value = 0;
+  hasSkipped.value = false;
 
   if (!question) {
     gameState.value = "intro";
@@ -438,6 +450,7 @@ function writeStoredResult(question = selectedQuestion.value) {
     answerQuality: answerQuality.value,
     visibleWordsByCard: [...visibleWordsByCard.value],
     completedAt: new Date().toISOString(),
+    skipped: hasSkipped.value,
   };
 
   window.localStorage.setItem(
@@ -467,6 +480,7 @@ function hydrateStoredResult(question = selectedQuestion.value) {
   elapsedSeconds.value = stored.elapsedSeconds;
   wrongAttempts.value = stored.wrongAttempts;
   answerQuality.value = stored.answerQuality ?? 1;
+  hasSkipped.value = stored.skipped ?? false;
   visibleWordsByCard.value = stored.visibleWordsByCard;
   currentCardIndex.value = Math.max(
     0,
@@ -632,6 +646,20 @@ function handleSkip() {
   startReveal();
 }
 
+async function skipToAnswer() {
+  hasSkipped.value = true;
+  showSkipChip.value = false;
+  visibleWordsByCard.value = [...cardWordsCounts.value];
+  currentCardIndex.value = Math.max(0, cardWordsCounts.value.length - 1);
+  gameState.value = "result";
+  resultTone.value = "right";
+  clearTimers();
+  writeStoredResult();
+  saveInitials();
+  animateScore(score.value);
+  await fetchAnswerData(selectedQuestion.value!.date);
+}
+
 function startReveal() {
   window.clearInterval(revealTimer);
 
@@ -717,6 +745,9 @@ function selectArchiveQuestion(item: (typeof archiveQuestions.value)[number]) {
 }
 
 async function submitGuess() {
+  if (hasSkipped.value) {
+    return;
+  }
   const question = selectedQuestion.value;
   if (
     !guess.value.trim() ||
@@ -1103,7 +1134,7 @@ watch(guess, () => {
             </p>
             <div class="guess-area">
               <form
-                class="guess-form grid gap-2 sm:grid-cols-[1fr_auto]"
+                class="guess-form grid gap-2 sm:grid-cols-[1fr_auto_auto]"
                 @submit.prevent="submitGuess"
               >
                 <label class="sr-only" for="answer">Answer</label>
@@ -1126,6 +1157,14 @@ watch(guess, () => {
                   class="h-12 rounded-full bg-white px-6 text-black hover:bg-[#f1e4d2]"
                 >
                   Submit
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  class="h-12 rounded-full border-zinc-600 bg-zinc-900/70 text-zinc-200 hover:border-zinc-500 hover:bg-zinc-800/70"
+                  @click="skipToAnswer"
+                >
+                  Skip to answer
                 </Button>
               </form>
               <div class="guess-feedback-anchor" aria-live="polite">
@@ -1226,7 +1265,7 @@ watch(guess, () => {
 
               <div
                 ref="answerCarousel"
-                class="answer-slides md:max-h-[55vh] max-h-[35vh]"
+                class="answer-slides md:max-h-[55vh] max-h-[35vh] overflow-y-hidden"
                 aria-label="Answer slides"
                 @scroll.passive="syncAnswerSlideIndex"
               >

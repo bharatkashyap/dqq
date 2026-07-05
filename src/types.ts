@@ -33,6 +33,7 @@ export type StoredResult = {
   answerQuality: number;
   visibleWordsByCard: number[];
   completedAt: string;
+  skipped?: boolean;
 };
 
 export type GameState = "intro" | "playing" | "result";
