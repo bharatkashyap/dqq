@@ -55,6 +55,7 @@ const gameState = ref<GameState>("intro");
 const initials = ref("");
 const guess = ref("");
 const copied = ref(false);
+const editingInitials = ref(false);
 const showArchive = ref(false);
 const currentCardIndex = ref(0);
 const visibleWordsByCard = ref<number[]>([]);
@@ -286,6 +287,13 @@ const sharePayloadText = computed(() => {
   if (!shareText.value || !selectedQuestionUrl.value) return shareText.value;
   return `${shareText.value}\n${selectedQuestionUrl.value}`;
 });
+
+function commitInitials() {
+  saveInitials();
+  // Overwrite any stored result for the current question so initials persist
+  writeStoredResult();
+  editingInitials.value = false;
+}
 
 function storageKey(date: string) {
   return `quizgen-daily-result:${date}`;
@@ -519,204 +527,7 @@ function formatScore(value: number) {
   });
 }
 
-function wrapText(
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  maxWidth: number,
-): string[] {
-  const words = text.trim().split(/\s+/).filter(Boolean);
-  const lines: string[] = [];
-  let current = "";
 
-  for (const word of words) {
-    const next = current ? `${current} ${word}` : word;
-    if (ctx.measureText(next).width <= maxWidth) {
-      current = next;
-      continue;
-    }
-
-    if (current) {
-      lines.push(current);
-    }
-    current = word;
-  }
-
-  if (current) {
-    lines.push(current);
-  }
-
-  return lines.length ? lines : [text];
-}
-
-function roundRect(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  radius: number,
-) {
-  ctx.beginPath();
-  ctx.moveTo(x + radius, y);
-  ctx.lineTo(x + width - radius, y);
-  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-  ctx.lineTo(x + width, y + height - radius);
-  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-  ctx.lineTo(x + radius, y + height);
-  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-  ctx.lineTo(x, y + radius);
-  ctx.quadraticCurveTo(x, y, x + radius, y);
-  ctx.closePath();
-}
-
-async function buildShareImageFile() {
-  const width = 1080;
-  const height = 1350;
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext("2d");
-
-  if (!ctx) {
-    return null;
-  }
-
-  const bg = ctx.createLinearGradient(0, 0, width, height);
-  bg.addColorStop(0, "#08080a");
-  bg.addColorStop(0.55, "#111114");
-  bg.addColorStop(1, "#09090b");
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, width, height);
-
-  const accent = ctx.createRadialGradient(820, 180, 60, 820, 180, 540);
-  accent.addColorStop(0, "rgba(214,166,79,0.34)");
-  accent.addColorStop(1, "rgba(214,166,79,0)");
-  ctx.fillStyle = accent;
-  ctx.fillRect(0, 0, width, height);
-
-  const accent2 = ctx.createRadialGradient(180, 1120, 40, 180, 1120, 520);
-  accent2.addColorStop(0, "rgba(110,134,190,0.22)");
-  accent2.addColorStop(1, "rgba(110,134,190,0)");
-  ctx.fillStyle = accent2;
-  ctx.fillRect(0, 0, width, height);
-
-  const cardX = 72;
-  const cardY = 92;
-  const cardW = width - 144;
-  const cardH = height - 184;
-
-  ctx.shadowColor = "rgba(0,0,0,0.35)";
-  ctx.shadowBlur = 24;
-  ctx.shadowOffsetY = 12;
-  ctx.fillStyle = "#171719";
-  roundRect(ctx, cardX, cardY, cardW, cardH, 40);
-  ctx.fill();
-  ctx.shadowColor = "transparent";
-
-  ctx.fillStyle = "rgba(255,255,255,0.52)";
-  ctx.font = '700 28px "Avenir Next", sans-serif';
-  ctx.letterSpacing = "0.18em";
-  ctx.fillText("QUIZGEN DAILY", cardX + 44, cardY + 54);
-
-  ctx.fillStyle = "#f6f0e4";
-  ctx.font = '700 56px "Avenir Next", sans-serif';
-  ctx.fillText(
-    `Daily #${selectedQuestion.value?.number ?? ""}`,
-    cardX + 44,
-    cardY + 122,
-  );
-
-  ctx.fillStyle = "#e7b64d";
-  ctx.font = '800 108px "Iowan Old Style", Georgia, serif';
-  ctx.fillText(formatScore(score.value), cardX + 44, cardY + 238);
-
-  ctx.fillStyle = "rgba(255,255,255,0.72)";
-  ctx.font = '700 34px "Avenir Next", sans-serif';
-  const dateLine = `${formattedDate.value} · ${elapsedSeconds.value}s · ${visibleCardCount.value} cards`;
-  const dateLines = wrapText(ctx, dateLine, cardW - 88);
-  let cursorY = cardY + 286;
-  for (const line of dateLines.slice(0, 2)) {
-    ctx.fillText(line, cardX + 44, cursorY);
-    cursorY += 40;
-  }
-
-  const promptY = cardY + 388;
-  ctx.fillStyle = "#ffffff";
-  ctx.font = '800 42px "Avenir Next", sans-serif';
-  const promptLines = wrapText(
-    ctx,
-    selectedQuestion.value?.question ?? "",
-    cardW - 88,
-  );
-  let lineY = promptY;
-  for (const line of promptLines.slice(0, 3)) {
-    ctx.fillText(line, cardX + 44, lineY);
-    lineY += 50;
-  }
-
-  const statsY = promptY + 238;
-  const statsH = 330;
-  ctx.fillStyle = "#1f1f22";
-  roundRect(ctx, cardX + 24, statsY, cardW - 48, statsH, 34);
-  ctx.fill();
-
-  ctx.fillStyle = "rgba(255,255,255,0.46)";
-  ctx.font = '800 26px "Avenir Next", sans-serif';
-  ctx.fillText("RESULT", cardX + 52, statsY + 52);
-
-  const stats = [
-    ["TIME", `${elapsedSeconds.value}s`],
-    ["CARDS", String(visibleCardCount.value)],
-    ["WORDS", `${totalWordsSeen.value}/${totalAvailableWords.value}`],
-  ];
-
-  const statW = (cardW - 128) / stats.length;
-  stats.forEach(([label, value], index) => {
-    const x = cardX + 52 + statW * index;
-    ctx.fillStyle = "rgba(255,255,255,0.42)";
-    ctx.font = '800 22px "Avenir Next", sans-serif';
-    ctx.fillText(label, x, statsY + 126);
-    ctx.fillStyle = "#f6f0e4";
-    ctx.font = '800 48px "Avenir Next", sans-serif';
-    ctx.fillText(value, x, statsY + 188);
-  });
-
-  ctx.fillStyle = "#e7b64d";
-  ctx.font = '700 34px "Avenir Next", sans-serif';
-  const challengeLines = wrapText(
-    ctx,
-    "Think you can solve it earlier?",
-    cardW - 104,
-  );
-  let challengeY = statsY + 274;
-  for (const line of challengeLines.slice(0, 2)) {
-    ctx.fillText(line, cardX + 52, challengeY);
-    challengeY += 42;
-  }
-
-  ctx.fillStyle = "rgba(255,255,255,0.42)";
-  ctx.font = '700 24px "Avenir Next", sans-serif';
-  ctx.fillText(
-    `${playerInitials.value} · ${totalWordsSeen.value}/${totalAvailableWords.value} words`,
-    cardX + 52,
-    cardY + cardH - 48,
-  );
-
-  const blob = await new Promise<Blob | null>((resolve) =>
-    canvas.toBlob(resolve, "image/png"),
-  );
-  if (!blob) {
-    return null;
-  }
-
-  return new File(
-    [blob],
-    `quizgen-daily-${selectedQuestion.value?.number ?? "share"}.png`,
-    {
-      type: "image/png",
-    },
-  );
-}
 
 function animateScore(target: number) {
   if (scoreFrame) {
@@ -1009,31 +820,17 @@ function goHome() {
 }
 
 async function shareScore() {
-  const text = sharePayloadText.value;
-  const file = await buildShareImageFile();
-
-  if (file && navigator.share && navigator.canShare?.({ files: [file] })) {
-    await navigator.share({
-      title: "Quizgen Daily",
-      text,
-      url: selectedQuestionUrl.value,
-      files: [file],
-    });
-    showShareFeedback();
-    return;
-  }
-
   if (navigator.share) {
     await navigator.share({
-      text,
       title: "Quizgen Daily",
+      text: shareText.value,
       url: selectedQuestionUrl.value,
     });
     showShareFeedback();
     return;
   }
 
-  await navigator.clipboard.writeText(text);
+  await navigator.clipboard.writeText(sharePayloadText.value);
   showShareFeedback();
 }
 
@@ -1438,9 +1235,47 @@ watch(answerSlides, () => {
             </section>
 
             <div
-              class="flex justify-center gap-3 pt-0.5 max-sm:pointer-events-none max-sm:sticky max-sm:bottom-4 max-sm:z-20"
+              class="flex items-center justify-center gap-3 pt-0.5 max-sm:pointer-events-none max-sm:sticky max-sm:bottom-4 max-sm:z-20"
               aria-label="Result actions"
             >
+              <!-- Initials editor -->
+              <div class="pointer-events-auto flex items-center">
+                <Transition
+                  enter-active-class="transition-all duration-200 ease-out"
+                  enter-from-class="opacity-0 w-0"
+                  enter-to-class="opacity-100 w-[7rem]"
+                  leave-active-class="transition-all duration-150 ease-in"
+                  leave-from-class="opacity-100 w-[7rem]"
+                  leave-to-class="opacity-0 w-0"
+                >
+                  <input
+                    v-if="editingInitials"
+                    id="result-initials"
+                    v-model="initials"
+                    type="text"
+                    maxlength="3"
+                    autocomplete="off"
+                    autocorrect="off"
+                    spellcheck="false"
+                    placeholder="ABC"
+                    aria-label="Edit initials"
+                    class="w-[7rem] rounded-full border border-[#d6a64f]/60 bg-zinc-950/80 px-4 py-0 text-center text-sm font-bold uppercase tracking-widest text-white shadow-[0_14px_32px_rgb(0_0_0_/_0.34)] backdrop-blur-md outline-none focus:border-[#d6a64f] h-[3.75rem] sm:h-[3.45rem]"
+                    @keydown.enter="commitInitials"
+                    @keydown.escape="editingInitials = false"
+                    @blur="commitInitials"
+                  />
+                </Transition>
+                <button
+                  type="button"
+                  class="flex size-[3.75rem] items-center justify-center rounded-full border border-white/20 bg-zinc-950/70 text-sm font-bold uppercase tracking-widest text-zinc-300 shadow-[0_14px_32px_rgb(0_0_0_/_0.34),inset_0_1px_0_rgb(255_255_255_/_0.08)] backdrop-blur-md transition hover:border-[#d6a64f]/60 hover:text-[#d6a64f] sm:size-[3.45rem]"
+                  :aria-label="editingInitials ? 'Done editing initials' : 'Edit initials'"
+                  :title="editingInitials ? 'Done' : `Initials: ${playerInitials}`"
+                  @click="editingInitials ? commitInitials() : (editingInitials = true)"
+                >
+                  {{ playerInitials }}
+                </button>
+              </div>
+
               <Button
                 size="icon"
                 class="pointer-events-auto size-[3.75rem] rounded-full border border-transparent bg-[#f6f0e4] text-[#09090b] shadow-[0_14px_32px_rgb(0_0_0_/_0.34),inset_0_1px_0_rgb(255_255_255_/_0.08)] backdrop-blur-md hover:bg-white sm:size-[3.45rem]"
