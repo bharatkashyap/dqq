@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import {
-  CalendarDays,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -13,6 +12,7 @@ import {
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
+import ArchiveButton from "@/components/ArchiveButton.vue";
 import Button from "@/components/ui/Button.vue";
 import TipTapRenderer from "@/components/TipTapRenderer.vue";
 import type {
@@ -475,6 +475,10 @@ async function openLatestQuestion() {
   } finally {
     isQuestionLoading.value = false;
   }
+}
+
+function toggleArchive() {
+  showArchive.value = !showArchive.value;
 }
 
 function writeStoredResult(question = selectedQuestion.value) {
@@ -1104,13 +1108,20 @@ watch(guess, () => {
           </div>
 
           <div class="grid gap-3">
-            <Button
-              class="attention-pulse h-14 rounded-full bg-white text-base text-black shadow-none hover:bg-[#f1e4d2] sm:h-16 cursor-pointer"
-              @click="openLatestQuestion"
-            >
-              <Play class="size-5 fill-current" />
-              Play the latest
-            </Button>
+            <div class="flex items-center gap-3">
+              <Button
+                class="attention-pulse h-14 flex-1 rounded-full bg-white text-base text-black shadow-none hover:bg-[#f1e4d2] sm:h-16 cursor-pointer"
+                @click="openLatestQuestion"
+              >
+                <Play class="size-5 fill-current" />
+                Play the latest
+              </Button>
+              <ArchiveButton
+                :active="showArchive"
+                class="size-14 sm:size-16"
+                @click="toggleArchive"
+              />
+            </div>
             <p v-if="questionError" class="text-sm font-medium text-red-300">
               {{ questionError }}
             </p>
@@ -1423,18 +1434,11 @@ watch(guess, () => {
                   {{ copied ? "Shared result" : "Share result" }}
                 </span>
               </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                :class="`pointer-events-auto size-[3.75rem] rounded-full border-white/30 bg-zinc-950/70 text-zinc-100 shadow-[0_14px_32px_rgb(0_0_0_/_0.34),inset_0_1px_0_rgb(255_255_255_/_0.08)] backdrop-blur-md hover:border-[#d6a64f]/70 hover:bg-zinc-900/90 sm:size-[3.45rem] ${showArchive ? 'border-[#d6a64f]/70 bg-zinc-900/90 text-white' : ''}`"
-                :aria-pressed="showArchive"
-                aria-label="Open archive"
-                title="Archive"
-                @click="showArchive = !showArchive"
-              >
-                <CalendarDays class="size-5" />
-                <span class="sr-only">Archive</span>
-              </Button>
+              <ArchiveButton
+                :active="showArchive"
+                class="size-[3.75rem] sm:size-[3.45rem]"
+                @click="toggleArchive"
+              />
             </div>
           </template>
         </div>
