@@ -5,6 +5,7 @@ import {
   ChevronRight,
   Lock,
   Play,
+  ScrollText,
   Share2,
   Timer,
   X,
@@ -62,6 +63,7 @@ const initials = ref("");
 const guess = ref("");
 const copied = ref(false);
 const showArchive = ref(false);
+const showQuestionReview = ref(false);
 const currentCardIndex = ref(0);
 const visibleWordsByCard = ref<number[]>([]);
 const elapsedSeconds = ref(0);
@@ -198,6 +200,9 @@ const hasStoredResult = computed(() => {
   if (!selectedQuestion.value) return false;
   return Boolean(readStoredResult(selectedQuestion.value.date));
 });
+const isReviewingQuestion = computed(
+  () => gameState.value === "result" && showQuestionReview.value,
+);
 const playersToday = computed(
   () =>
     resultStats.value?.playersToday ??
@@ -358,6 +363,7 @@ function setCurrentQuestion(question: Question | LockedQuestion | null) {
   guess.value = "";
   copied.value = false;
   showArchive.value = false;
+  showQuestionReview.value = false;
   currentCardIndex.value = 0;
   visibleWordsByCard.value = question?.paragraphs.map(() => 0) || [];
   elapsedSeconds.value = 0;
@@ -479,6 +485,14 @@ async function openLatestQuestion() {
 
 function toggleArchive() {
   showArchive.value = !showArchive.value;
+}
+
+function openQuestionReview() {
+  if (gameState.value !== "result" || isLocked.value) {
+    return;
+  }
+
+  showQuestionReview.value = true;
 }
 
 function writeStoredResult(question = selectedQuestion.value) {
@@ -704,6 +718,11 @@ function handleSkip() {
 }
 
 async function skipToAnswer() {
+  if (isReviewingQuestion.value) {
+    showQuestionReview.value = false;
+    return;
+  }
+
   hasSkipped.value = true;
   showSkipChip.value = false;
   visibleWordsByCard.value = [...cardWordsCounts.value];
@@ -753,6 +772,7 @@ function startGame() {
 
   saveInitials();
   clearTimers();
+  showQuestionReview.value = false;
   gameState.value = "playing";
   guess.value = "";
   copied.value = false;
@@ -813,6 +833,7 @@ function revealNextCard() {
 
 function canRevealCard(cardIndex: number) {
   return (
+    gameState.value === "playing" &&
     cardComplete.value &&
     canRevealNextCard.value &&
     cardIndex === currentCardIndex.value + 1
@@ -1165,7 +1186,7 @@ watch(guess, () => {
         <div class="flutter-lines" aria-hidden="true"></div>
 
         <div
-          v-if="gameState === 'playing'"
+          v-if="gameState === 'playing' || isReviewingQuestion"
           class="relative grid min-h-[590px] content-between gap-8 p-7 sm:min-h-[620px] sm:p-10"
         >
           <div class="flex items-center justify-between gap-4">
@@ -1175,7 +1196,11 @@ watch(guess, () => {
                 {{ selectedQuestion.paragraphs.length }}
               </p>
               <p class="mt-1 text-base font-semibold text-[#d6a64f]">
-                Daily #{{ selectedQuestion.number }}
+                {{
+                  isReviewingQuestion
+                    ? `Reviewing Daily #${selectedQuestion.number}`
+                    : `Daily #${selectedQuestion.number}`
+                }}
               </p>
             </div>
             <div class="flex items-center gap-2 text-3xl font-black text-white">
@@ -1229,6 +1254,7 @@ watch(guess, () => {
             </p>
             <div class="guess-area">
               <form
+                v-if="!isReviewingQuestion"
                 class="guess-form grid gap-2 sm:grid-cols-[1fr_auto_auto]"
                 @submit.prevent="submitGuess"
               >
@@ -1262,10 +1288,20 @@ watch(guess, () => {
                   Skip to answer
                 </Button>
               </form>
+              <div v-else class="flex justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  class="h-12 rounded-full border-zinc-600 bg-zinc-900/70 px-6 text-zinc-200 hover:border-zinc-500 hover:bg-zinc-800/70"
+                  @click="skipToAnswer"
+                >
+                  View answer
+                </Button>
+              </div>
               <div class="guess-feedback-anchor" aria-live="polite">
                 <Transition name="guess-feedback">
                   <p
-                    v-if="resultTone === 'wrong'"
+                    v-if="resultTone === 'wrong' && !isReviewingQuestion"
                     class="pointer-events-none block w-fit max-w-full rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm font-medium text-rose-200"
                     role="status"
                   >
@@ -1277,7 +1313,7 @@ watch(guess, () => {
 
             <div class="h-11">
               <Button
-                v-show="canRevealNextCard"
+                v-show="canRevealNextCard && !isReviewingQuestion"
                 variant="outline"
                 class="hidden h-11 w-full rounded-full border-zinc-600 sm:inline-flex"
                 :disabled="!cardComplete"
@@ -1433,6 +1469,17 @@ watch(guess, () => {
                 <span class="sr-only">
                   {{ copied ? "Shared result" : "Share result" }}
                 </span>
+              </Button>
+              <Button
+                size="icon"
+                variant="outline"
+                class="pointer-events-auto size-[3.75rem] rounded-full border-white/30 bg-zinc-950/70 text-zinc-100 shadow-[0_14px_32px_rgb(0_0_0_/_0.34),inset_0_1px_0_rgb(255_255_255_/_0.08)] backdrop-blur-md hover:border-[#d6a64f]/70 hover:bg-zinc-900/90 sm:size-[3.45rem]"
+                aria-label="View question"
+                title="View question"
+                @click="openQuestionReview"
+              >
+                <ScrollText class="size-5" />
+                <span class="sr-only">View question</span>
               </Button>
               <ArchiveButton
                 :active="showArchive"
